@@ -1,5 +1,7 @@
-// Data model for Parchi Orders. Money is integer paise, rates are basis points
-// (DECISIONS.md #13). Models are added in the next commit.
+// Data model for Parchi Orders.
+// - Money is integer paise; rates are basis points (1% = 100). DECISIONS.md #13.
+// - Timestamps are UTC, shown in IST. Assumption C.18.
+// - CHECK constraints that Prisma cannot express live in the init migration SQL.
 
 generator client {
   provider = "prisma-client"
@@ -8,4 +10,436 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  RETAILER
+  DESK
+  // SALESMAN is a future extension (D17).
+}
+
+enum Locale {
+  HI
+  EN
+}
+
+/// Unit the dealer price is quoted in. Demo data is per PIECE (A.1, C.3).
+enum PriceUnit {
+  PIECE
+  CASE
+}
+
+enum SchemeType {
+  FREE_GOODS
+  SLAB_DISCOUNT
+}
+
+/// DRAFT is kept for a future salesman/offline mode and is not used (D12).
+enum OrderStatus {
+  DRAFT
+  PENDING_REVIEW
+  CREDIT_HOLD
+  REVIEW_REQUIRED
+  APPROVED
+  CANCELLED
+  EXPORTED
+}
+
+enum OrderSource {
+  CATALOGUE
+  REPEAT
+  AI_CAPTURE
+}
+
+/// Why the line's scheme was chosen (D2, D18, D34).
+enum OfferSelection {
+  BEST_OFFER
+  DISCOUNT_FREE_GOODS_SHORT
+}
+
+enum CaptureStatus {
+  PARSED
+  FAILED
+  CONFIRMED
+  DISCARDED
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+  NEEDS_CLARIFICATION
+}
+
+/// How a captured line ended up (D27, D28). Only desk CORRECTED lines become aliases.
+enum CaptureLineResolution {
+  PENDING
+  ACCEPTED
+  CORRECTED
+  REMOVED
+}
+
+enum OrderEventType {
+  PLACED
+  STATUS_CHANGED
+  LINE_ADDED
+  LINE_EDITED
+  LINE_REMOVED
+  LINE_RESOLVED
+  NOTE
+  CANCEL_REQUESTED
+  ACK_REQUESTED
+  ACK_ACCEPTED
+  EXPORTED
+}
+
+// ─── People and access ──────────────────────────────────────────────────────
+
+/// D5: each retailer belongs to one tier; the tier discount applies to the case price.
+model PriceTier {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  discountBps Int
+  retailers   Retailer[]
+}
+
+model Retailer {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  shopName         String
+  ownerName        String
+  area             String
+  tierId           String
+  tier             PriceTier @relation(fields: [tierId], references: [id])
+  creditLimitPaise Int
+  /// Mocked ledger balance; the real figure lives in Tally.
+  outstandingPaise Int
+  createdAt        DateTime  @default(now())
+
+  users    User[]
+  orders   Order[]
+  captures Capture[]
+  aliases  Alias[]
+}
+
+model User {
+  id         String    @id @default(cuid())
+  /// Fake demo numbers only (CLAUDE.md security rules).
+  phone      String    @unique
+  name       String
+  role       Role
+  /// Set if and only if role = RETAILER (CHECK in migration).
+  retailerId String?
+  retailer   Retailer? @relation(fields: [retailerId], references: [id])
+  locale     Locale    @default(HI)
+  createdAt  DateTime  @default(now())
+
+  sessions         Session[]
+  ordersPlaced     Order[]       @relation("OrderPlacedBy")
+  ordersApproved   Order[]       @relation("OrderApprovedBy")
+  captures         Capture[]
+  captureLinesDone CaptureLine[]
+  aliases          Alias[]
+  orderEvents      OrderEvent[]
+  exportBatches    ExportBatch[]
+}
+
+/// D13: the cookie holds a random token; only its SHA-256 hash is stored.
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Catalogue, schemes, stock ──────────────────────────────────────────────
+
+model Brand {
+  id   String @id @default(cuid())
+  name String @unique
+  skus Sku[]
+}
+
+model Category {
+  id        String @id @default(cuid())
+  slug      String @unique
+  nameEn    String
+  nameHi    String
+  sortOrder Int
+  skus      Sku[]
+}
+
+model Sku {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  nameEn           String
+  nameHi           String
+  brandId          String
+  brand            Brand     @relation(fields: [brandId], references: [id])
+  categoryId       String
+  category         Category  @relation(fields: [categoryId], references: [id])
+  /// Human-readable pack size, e.g. "75 g".
+  packSize         String
+  piecesPerCase    Int
+  dealerPricePaise Int
+  dealerPriceUnit  PriceUnit @default(PIECE)
+  /// MRP is always GST-inclusive and is never the dealer price (A.2).
+  mrpPaise         Int?
+  /// Per-SKU GST rate; demo values (D35).
+  gstBps           Int
+  /// D4: available = stockCases - reservedCases.
+  stockCases       Int
+  reservedCases    Int       @default(0)
+  /// Key of the SVG pack illustration (D25).
+  imageKey         String
+  active           Boolean   @default(true)
+
+  schemes    Scheme[]
+  orderLines OrderLine[]
+  aliases    Alias[]
+
+  @@index([categoryId])
+}
+
+/// D2: a SKU may have several schemes; per line the engine applies the single best one.
+/// A multi-step slab is several SLAB_DISCOUNT rows. Column use per type is enforced by CHECK.
+model Scheme {
+  id          String     @id @default(cuid())
+  skuId       String
+  sku         Sku        @relation(fields: [skuId], references: [id])
+  type        SchemeType
+  labelEn     String
+  labelHi     String
+  /// FREE_GOODS: buy `buyCases` paid cases, get `freeCases` free, per complete multiple (A.3).
+  buyCases    Int?
+  freeCases   Int?
+  /// SLAB_DISCOUNT: `discountBps` off the whole line at `minCases` or more paid cases (A.4).
+  minCases    Int?
+  discountBps Int?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  active      Boolean    @default(true)
+
+  orderLines OrderLine[]
+
+  @@index([skuId])
+}
+
+// ─── Orders ─────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  /// Human order number; shown formatted in the UI.
+  number          Int         @unique @default(autoincrement())
+  /// D16: one per cart; a retried submit returns the existing order.
+  clientRequestId String      @unique
+  retailerId      String
+  retailer        Retailer    @relation(fields: [retailerId], references: [id])
+  placedById      String
+  placedBy        User        @relation("OrderPlacedBy", fields: [placedById], references: [id])
+  source          OrderSource
+  status          OrderStatus
+  /// Optimistic lock: every mutation must send the version it read.
+  version         Int         @default(0)
+
+  /// Current totals (sum of frozen line values, D6, D22).
+  taxablePaise       Int
+  discountPaise      Int
+  gstPaise           Int
+  totalPaise         Int
+  /// Total at submission, kept so changes can be shown (D32).
+  originalTotalPaise Int
+
+  /// Credit snapshot at the last check (D20, D21, D33).
+  creditLimitPaise     Int
+  availableCreditPaise Int
+  overLimitPaise       Int
+  creditCheckedAt      DateTime
+
+  /// D32: set when a desk change raises the total or swaps a priced SKU.
+  awaitingRetailerAck Boolean   @default(false)
+  ackRequestedAt      DateTime?
+  ackAcceptedAt       DateTime?
+  /// D23: retailer asked to cancel a held or review-required order.
+  cancelRequestedAt   DateTime?
+
+  /// Reason for reject/cancel.
+  reason        String?
+  captureId     String?      @unique
+  capture       Capture?     @relation(fields: [captureId], references: [id])
+  exportBatchId String?
+  exportBatch   ExportBatch? @relation(fields: [exportBatchId], references: [id])
+
+  placedAt     DateTime  @default(now())
+  approvedAt   DateTime?
+  approvedById String?
+  approvedBy   User?     @relation("OrderApprovedBy", fields: [approvedById], references: [id])
+  exportedAt   DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  lines  OrderLine[]
+  events OrderEvent[]
+
+  @@index([status, placedAt])
+  @@index([retailerId, placedAt])
+  @@index([awaitingRetailerAck])
+}
+
+/// Prices, scheme and GST are frozen here at submission (D14, D22).
+model OrderLine {
+  id              String         @id @default(cuid())
+  orderId         String
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  skuId           String
+  sku             Sku            @relation(fields: [skuId], references: [id])
+  /// Snapshots so history stays readable if the catalogue changes.
+  skuCode         String
+  nameEn          String
+  nameHi          String
+  paidCases       Int
+  freeCases       Int
+  casePricePaise  Int
+  taxablePaise    Int
+  discountBps     Int
+  discountPaise   Int
+  gstBps          Int
+  gstPaise        Int
+  lineTotalPaise  Int
+  /// Reference value of free goods; carries no taxable value (D6, C.22).
+  freeValuePaise  Int
+  appliedSchemeId String?
+  appliedScheme   Scheme?        @relation(fields: [appliedSchemeId], references: [id])
+  appliedLabel    String?
+  /// D2: the other eligible offer, named in the UI.
+  otherOfferLabel String?
+  offerSelection  OfferSelection @default(BEST_OFFER)
+  captureLineId   String?        @unique
+  captureLine     CaptureLine?   @relation(fields: [captureLineId], references: [id])
+  createdAt       DateTime       @default(now())
+
+  @@index([orderId])
+}
+
+/// D8, D31: audit trail. Edits store before/after line values in `payload`.
+model OrderEvent {
+  id         String         @id @default(cuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Null means the system acted (e.g. automatic credit hold).
+  actorId    String?
+  actor      User?          @relation(fields: [actorId], references: [id])
+  type       OrderEventType
+  fromStatus OrderStatus?
+  toStatus   OrderStatus?
+  reason     String?
+  payload    Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// ─── AI capture ─────────────────────────────────────────────────────────────
+
+/// The original message and raw model output are kept for traceability (A.10).
+/// An unconfirmed capture never creates an Order (D12).
+model Capture {
+  id          String        @id @default(cuid())
+  retailerId  String
+  retailer    Retailer      @relation(fields: [retailerId], references: [id])
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  rawText     String
+  model       String?
+  /// Untrusted model JSON, stored as received.
+  aiResponse  Json?
+  status      CaptureStatus
+  /// NO_KEY | TIMEOUT | INVALID_JSON | API_ERROR
+  failReason  String?
+  latencyMs   Int?
+  createdAt   DateTime      @default(now())
+  confirmedAt DateTime?
+
+  lines CaptureLine[]
+  order Order?
+
+  @@index([retailerId, createdAt])
+}
+
+model CaptureLine {
+  id                String                @id @default(cuid())
+  captureId         String
+  capture           Capture               @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  position          Int
+  /// The retailer's original words.
+  raw               String
+  aiSkuId           String?
+  aiQty             Int?
+  aiUnit            String?
+  /// Model's 0–100 score, then the code-adjusted score (D10).
+  aiScore           Int?
+  finalScore        Int?
+  confidence        Confidence
+  alternativeSkuIds String[]
+  /// e.g. UNIT_UNCLEAR, OUT_OF_STOCK, UNKNOWN_SKU
+  flags             String[]
+  note              String?
+  resolution        CaptureLineResolution @default(PENDING)
+  resolvedSkuId     String?
+  resolvedCases     Int?
+  resolvedById      String?
+  resolvedBy        User?                 @relation(fields: [resolvedById], references: [id])
+  resolvedAt        DateTime?
+
+  orderLine OrderLine?
+
+  @@unique([captureId, position])
+}
+
+/// Retailer-specific aliases from verified desk corrections (A.9, D28).
+/// The common glossary lives in code (src/domain/capture/glossary.ts).
+model Alias {
+  id               String   @id @default(cuid())
+  retailerId       String
+  retailer         Retailer @relation(fields: [retailerId], references: [id])
+  /// Lower-cased, trimmed, whitespace-collapsed.
+  phraseNormalized String
+  skuId            String
+  sku              Sku      @relation(fields: [skuId], references: [id])
+  createdById      String
+  createdBy        User     @relation(fields: [createdById], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@unique([retailerId, phraseNormalized])
+}
+
+// ─── Export and rate limiting ───────────────────────────────────────────────
+
+/// D29: CSV stored verbatim so past batches re-download byte-identically.
+model ExportBatch {
+  id          String   @id @default(cuid())
+  number      Int      @unique @default(autoincrement())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  orderCount  Int
+  totalPaise  Int
+  csv         String
+  createdAt   DateTime @default(now())
+
+  orders Order[]
+}
+
+/// D14: fixed-window counters, incremented atomically with INSERT … ON CONFLICT.
+model RateLimitHit {
+  key         String
+  windowStart DateTime
+  count       Int
+
+  @@id([key, windowStart])
 }
