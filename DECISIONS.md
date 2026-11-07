@@ -608,11 +608,54 @@ CANCELLED and EXPORTED are final.
 6. Business rules configurable where possible.
 7. No deferred features without approval.
 
-### Open items (awaiting my answer)
-- **O1 (D22):** What counts as a "material" change needing retailer acknowledgement, and how acknowledgement is modelled (flag or new status), including what happens if the retailer declines or never responds.
-- **O2 (D30):** Does approving a PENDING_REVIEW order re-check credit (outstanding or other orders may have changed since submission)?
-- **O3 (D18):** May the retailer choose the discount over free goods only when the free goods can't fit in stock, or at any time?
-- **O4 (Assumption):** Demo GST rates: biscuits 5%, tea 5%, detergent 18%. Labelled as demo data; to be verified against HSN classification with the distributor's accountant.
+### Open items
+O1–O4 were raised on 2026-11-07 and resolved the same day as D32–D35. Past-order seeding is D36.
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-07 | D32 Retailer acknowledgement (O1) | Flag on order; increases or SKU swaps need acknowledgement | Desk changes never silently raise the commitment |
+| 2026-11-07 | D33 Credit recheck at approval (O2) | Yes; over limit → CREDIT_HOLD | Credit may change between submit and approval |
+| 2026-11-07 | D34 Discount instead of free goods (O3) | Only when free goods can't fit in stock | Best offer (D2) can't be bypassed via the API |
+| 2026-11-07 | D35 Demo GST rates (O4) | Biscuits 5%, tea 5%, detergent 18%, per SKU | Demo only, verify against HSN |
+| 2026-11-07 | D36 Past-order seeding | At end of Phase 2, priced by the domain engine | One source of truth for pricing |
+
+### D32. Retailer acknowledgement of desk changes (resolves O1; refines D22)
+**Choice:**
+- **Material change:** any increase in the order total, or a different SKU on a line the retailer had already seen priced, requires retailer acknowledgement. Decreases are shown to the retailer but do not block approval.
+- **Unresolved AI lines:** once the desk identifies the product and prices it, the retailer must see the revised total and acknowledge it before approval. The absence of an earlier price is not consent.
+- **Mechanism:** an acknowledgement flag on the order, not a new status.
+- **Retailer actions:** the retailer sees the revised order with two actions, **Accept changes** or **Request cancellation**.
+- **Desk queue:** gets an **Awaiting retailer** filter.
+- **Enforced on the server:** the desk cannot approve while acknowledgement is pending.
+- **No response:** the desk can cancel with a reason. Auto-expiry stays deferred.
+- **History:** original values and the full change history are preserved for every desk edit.
+**Why:** Desk corrections must never silently increase what the retailer has committed to pay.
+
+### D33. Credit recheck at approval (resolves O2)
+**Choice:** When the desk approves an order, available credit is recalculated with the D20 formula, without counting the current order twice. If the retailer is now over the limit, the order moves from PENDING_REVIEW to CREDIT_HOLD automatically, and the reason is recorded in `OrderEvent`.
+**Why:** Outstanding balances and other orders can change between submission and approval.
+
+### D34. Choosing the discount instead of free goods (resolves O3; refines D18)
+**Choice:** The retailer can choose the discount instead of free goods only when the free goods can't be fulfilled because stock is insufficient. Otherwise the D2 best-offer rule is enforced. The server ignores or rejects any other offer sent directly to the API. Stock and the selected offer are revalidated in a transaction at submission.
+**Why:** The best-offer rule protects both sides and must not be bypassable by the client.
+
+### D35. Demo GST rates (resolves O4)
+**Choice:** Biscuits 5%, tea 5%, detergent 18%. These are demo assumptions to be verified against the actual HSN codes before production use. GST is configurable per SKU (`gstBps`) and never hard-coded in business logic.
+**Why:** Realistic demo values without baking unverified tax rates into code.
+
+### D36. Past-order seeding
+**Choice:** Past orders are seeded at the end of Phase 2, using the same domain-engine functions the application uses. Phase 1 seeds the catalogue, schemes, stock, tiers, retailers, credit and users only.
+**Why:** One source of truth for pricing, schemes and GST matters more than seeding history earlier.
+
+### D37. Seed data (approved defaults)
+**Choice:**
+- Fictional demo brands: Rewa Foods, Kanha Chai, Sitara Home Care and Bhedaghat Masale. Brief SKUs: biscuit → Rewa Foods, detergent → Sitara Home Care, tea → Kanha Chai.
+- 20 fictional retailers across Jabalpur localities, including 4 key accounts.
+- Fake phone-number pattern: desk `9999900001`, retailers from `9999900101`. OTP `123456`.
+- Hindi product and category names, Hindi as the default language.
+- All demo data clearly identifiable as synthetic.
+**Why:** Realistic demo data that is obviously not real.
+**Before production:** verify that the brand names do not conflict with real businesses or trademarks.
 
 ---
 
