@@ -1,0 +1,11 @@
+// Data model for Parchi Orders. Money is integer paise, rates are basis points
+// (DECISIONS.md #13). Models are added in the next commit.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
