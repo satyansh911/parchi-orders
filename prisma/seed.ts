@@ -7,6 +7,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { seedCatalogue } from "./seed-data/seed-catalogue";
+import { seedPeople } from "./seed-data/seed-people";
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
@@ -21,6 +22,11 @@ async function main() {
     console.log(
       `Seeded catalogue: ${catalogue.brands} brands, ${catalogue.categories} categories, ` +
         `${catalogue.skus} SKUs, ${catalogue.schemes} schemes`,
+    );
+
+    const people = await seedPeople(db);
+    console.log(
+      `Seeded people: ${people.tiers} price tiers, ${people.retailers} retailers, ${people.users} users`,
     );
   } finally {
     await db.$disconnect();
