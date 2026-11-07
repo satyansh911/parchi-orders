@@ -456,7 +456,163 @@ Thresholds stay at 90 and 70 and are checked against the eval set.
 ### Further decisions during the build
 | Date | Decision | Choice | Why |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-11-07 | D12 Cart and DRAFT | Cart in localStorage; DRAFT not used | Fast on 3G, no write per tap |
+| 2026-11-07 | D13 Sessions | DB sessions, hashed token, 7 days | Real logout, role re-read each request |
+| 2026-11-07 | D14 AI rate limit | DB table: 5/min, 40/day per user, 300/day global | No extra service; protects Gemini cost |
+| 2026-11-07 | D15 Language | Hindi names seeded, picker on login, default Hindi | Primary users are kirana retailers |
+| 2026-11-07 | D16 Idempotent submit | Request ID per cart, retries return the same order | Flaky connections must not duplicate orders |
+| 2026-11-07 | D17 Salesman | Not in schema; future extension | Only two roles in the core slice |
+| 2026-11-07 | D18 Dual scheme, short stock | Offer both valid options, retailer picks | Never switch silently, never over-promise |
+| 2026-11-07 | D19 Nudges | Free-goods and slab nudges when stock allows | Explains offers, encourages larger orders |
+| 2026-11-07 | D20 Available credit | Limit − outstanding − open orders | Stops order-splitting past the limit |
+| 2026-11-07 | D21 Status at submit | REVIEW_REQUIRED > CREDIT_HOLD > PENDING_REVIEW | Correct lines first, then credit |
+| 2026-11-07 | D22 Price freeze | Freeze at submit; only edited lines re-priced | Retailer pays what they agreed to |
+| 2026-11-07 | D23 Retailer on open orders | Edit in PENDING_REVIEW; request/notes otherwise | Flexibility before approval, desk keeps control |
+| 2026-11-07 | D24 Cancel approved | Restore stock exactly once, in a transaction | Undispatched goods return to stock |
+| 2026-11-07 | D25 Images | Lightweight SVG pack illustrations | Fast on 3G, no licensing |
+| 2026-11-07 | D26 Stock visibility | In stock / Only N left (≤ 20) / Out of stock | Useful without exposing inventory |
+| 2026-11-07 | D27 Partial capture | Retailer may confirm with unresolved lines | One unclear item shouldn't block an order |
+| 2026-11-07 | D28 Aliases | Only desk corrections become aliases | Retailer mis-taps must not pollute matching |
+| 2026-11-07 | D29 Tally export | One button, all approved not yet exported | Simple daily batch, reliable history |
+| 2026-11-07 | D30 Order lifecycle | Consolidated transition list (below) | Single source after D21–D27 |
+| 2026-11-07 | D31 Engineering expectations | Paise, transactions, audit, isolation, config | Standing rules for every phase |
+
+### D12. Cart and DRAFT (resolves C1)
+**Choice:** The cart lives in localStorage on the device. DRAFT is not used in the active order workflow and stays in the enum only for a possible future salesman/offline mode. Unconfirmed AI captures stay in `Capture`/`CaptureLine` records and never create `Order` records.
+**Why:** Keeps the retailer experience fast on slow 3G and avoids a database write on every cart interaction.
+
+### D13. Sessions
+**Choice:** Database-backed sessions. A random session token is stored in an HTTP-only, Secure, SameSite=Lax cookie; only its SHA-256 hash is stored in the database. Sessions expire after 7 days. Logout revokes the session. User role and permissions are re-read from the database on every request.
+**Why:** Better security, real revocation and centralised permission management.
+
+### D14. AI capture rate limiting
+**Choice:** A database table enforces the limits with atomic operations, so they hold across concurrent Vercel instances:
+- 5 AI captures per minute per user.
+- 40 AI captures per day per user.
+- 300 AI captures per day globally.
+**Why:** No extra external service, while protecting against excessive use and unexpected Gemini costs.
+
+### D15. Language
+**Choice:** Seed Hindi product and category names alongside English. Language picker on the login screen; the choice is remembered per user; Hindi is the default. English stays available.
+**Why:** The primary users are Indian kirana retailers who may be more comfortable ordering in Hindi.
+
+### D16. Idempotent order submission
+**Choice:** Generate a unique request ID when the cart is initialised and reuse it for retries. Submitting the same request more than once returns the original order instead of creating a duplicate. This must hold under concurrent requests.
+**Why:** Retailers have unstable connections; a retry must never create a duplicate order.
+
+### D17. Salesman role (resolves C5)
+**Choice:** Leave the salesman role and salesman relationships out of the initial schema. Document it as a future extension.
+**Why:** The core slice has two roles, retailer and order desk. Avoid unused functionality and schema complexity.
+
+### D18. Free goods that don't fit in stock on a dual-scheme SKU (refines A.3 and D7; resolves C3)
+**Choice:** When the retailer qualifies for free goods but available stock can't cover the full free quantity, offer both valid choices and let the retailer pick. Example, 340 available, Buy 10 Get 1 and 3% off 5+:
+- Option 1: 309 paid + 30 free = 339 cases.
+- Option 2: 340 paid with 3% off.
+Never switch schemes or quantities silently. Revalidate and reserve inventory in a transaction after the choice is made.
+**Why:** Gives retailers flexibility while the distributor never promises stock it doesn't have.
+
+### D19. Scheme nudges
+**Choice:** Show a nudge whenever the next eligible quantity can be met from available stock, e.g. "Add 3 more cases to get 1 free" or "Add 2 more cases to unlock 3% off". Free goods: next complete multiple. Slabs: next applicable slab.
+**Why:** Helps retailers understand offers and encourages larger orders without being intrusive.
+
+### D20. Available credit
+**Choice:** Available credit = credit limit − outstanding − total value of open orders.
+- Open orders: PENDING_REVIEW, CREDIT_HOLD, REVIEW_REQUIRED, and APPROVED but not yet exported.
+- Use each order's net payable (after discounts, including GST).
+- Exclude CANCELLED and EXPORTED orders.
+- Never count the order being validated twice.
+**Why:** Stops retailers from splitting a large order into smaller ones to get past the limit.
+
+### D21. Status at submission and precedence (resolves C2)
+**Choice:**
+- Credit is calculated during submission.
+- If the order has unresolved AI lines, it is created as REVIEW_REQUIRED (this takes precedence over credit).
+- Otherwise, if it exceeds available credit, it is created directly as CREDIT_HOLD, with a system `OrderEvent` recording the amount over the limit.
+- Otherwise it is created as PENDING_REVIEW.
+- When the desk resolves a REVIEW_REQUIRED order, credit is recalculated; if still over the limit, the order moves to CREDIT_HOLD. New transition: REVIEW_REQUIRED → CREDIT_HOLD.
+**Why:** Product and quantity correctness should be settled before credit is finalised.
+
+### D22. Price freeze and desk edits (resolves C4)
+**Choice:** Prices, schemes and GST are frozen at submission. When the desk changes a line, only that line is recalculated with the current price and scheme rules; the original line details are kept in the audit history. If a change materially alters the payable amount, the retailer must acknowledge it before final approval.
+**Why:** Retailers get the prices and schemes they agreed to; desk corrections never silently change their financial commitment.
+**Open:** what counts as "material", and how acknowledgement works. See Open items.
+
+### D23. Retailer actions on open orders (refines A.10)
+**Choice:**
+- PENDING_REVIEW: the retailer can edit quantities or remove lines, through the same server-side validation and pricing as the desk.
+- CREDIT_HOLD and REVIEW_REQUIRED: the retailer can request cancellation and add clarification notes, but cannot modify the order directly.
+- Requests and notes are recorded as order events.
+**Why:** Flexibility before approval, while the desk keeps control of orders that need intervention.
+
+### D24. Cancelling an approved order
+**Choice:** When the desk cancels an APPROVED order, the deducted stock is restored to inventory in a database transaction, exactly once.
+**Why:** Cancelled, undispatched orders must not permanently consume inventory.
+
+### D25. Product images
+**Choice:** Lightweight SVG pack illustrations with distinct product shapes, restrained brand/category colours, consistent dimensions and a polished look.
+**Why:** Fast on slow 3G, consistent, and free of external images and licensing.
+
+### D26. Stock visibility for retailers
+**Choice:** Three states: "In stock"; "Only N cases left" when available stock is 20 cases or fewer; "Out of stock". Exact quantities above 20 cases are never shown.
+**Why:** Useful availability information without exposing the distributor's full inventory.
+
+### D27. Confirming a capture with unresolved lines
+**Choice:**
+- Retailers may confirm a capture with some lines unresolved.
+- Resolved lines are priced and reserved; unresolved lines keep their original words and are attached to the order.
+- The order enters REVIEW_REQUIRED, and the desk must resolve every remaining line before approval.
+- Captures started by the desk must have every line resolved before confirmation.
+- Unresolved lines can never be exported.
+- Partial reservations are transactional and released correctly if the order is cancelled.
+**Why:** One unclear product doesn't block the retailer, while final processing stays under human supervision.
+
+### D28. Aliases
+**Choice:** Only verified desk corrections become permanent retailer-specific aliases. Retailer selections are recorded and used as matching context (the +10 adjustment in D10) but never become aliases automatically.
+**Why:** Desk corrections are verified; accidental retailer taps would degrade future matches.
+
+### D29. Tally export
+**Choice:**
+- One button exports every APPROVED order not yet exported. Before exporting, show the number of orders and their total value.
+- Each export is a batch CSV with a unique batch ID; exported orders are marked EXPORTED.
+- Duplicate exports are prevented.
+- The exact CSV contents are stored so past batches re-download byte-identically.
+- Failed exports are safely retryable.
+**Why:** Minimal manual effort for the office team, with a reliable export history.
+
+### D30. Order lifecycle, consolidated (supersedes the transition list in A.10 where they differ)
+Derived from A.10, D1, D12 and D21–D27. DRAFT is unused (D12).
+
+| From | To | Who | Condition |
+|---|---|---|---|
+| (submission) | REVIEW_REQUIRED | system | Unresolved AI lines (D21, D27) |
+| (submission) | CREDIT_HOLD | system | Over available credit; system event records the excess (D21) |
+| (submission) | PENDING_REVIEW | system | Otherwise |
+| PENDING_REVIEW | APPROVED | desk | |
+| PENDING_REVIEW | CREDIT_HOLD | system | Credit re-check fails (see Open items) |
+| REVIEW_REQUIRED | APPROVED | desk | All lines resolved, within credit |
+| REVIEW_REQUIRED | CREDIT_HOLD | system | All lines resolved, over credit (D21) |
+| CREDIT_HOLD | APPROVED | desk | Desk releases the hold |
+| PENDING_REVIEW | CANCELLED | retailer or desk | Retailer cancels own order; desk rejects with reason |
+| CREDIT_HOLD / REVIEW_REQUIRED | CANCELLED | desk | Reject with reason (retailer can only request, D23) |
+| APPROVED | CANCELLED | desk | Reason required, before export only; stock restored (D1, D24) |
+| APPROVED | EXPORTED | desk | Via export batch (D29) |
+
+CANCELLED and EXPORTED are final.
+
+### D31. Engineering expectations (standing rules)
+1. All financial calculations in integer paise.
+2. Database transactions for stock reservation and release, credit validation and order submission.
+3. Idempotency and stock reservation must be correct under concurrent requests.
+4. A complete audit history of order modifications, status changes, scheme applications and desk corrections.
+5. Retailer data isolation enforced on the server.
+6. Business rules configurable where possible.
+7. No deferred features without approval.
+
+### Open items (awaiting my answer)
+- **O1 (D22):** What counts as a "material" change needing retailer acknowledgement, and how acknowledgement is modelled (flag or new status), including what happens if the retailer declines or never responds.
+- **O2 (D30):** Does approving a PENDING_REVIEW order re-check credit (outstanding or other orders may have changed since submission)?
+- **O3 (D18):** May the retailer choose the discount over free goods only when the free goods can't fit in stock, or at any time?
+- **O4 (Assumption):** Demo GST rates: biscuits 5%, tea 5%, detergent 18%. Labelled as demo data; to be verified against HSN classification with the distributor's accountant.
 
 ---
 
