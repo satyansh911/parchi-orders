@@ -734,6 +734,33 @@ Nothing is switched silently. Together with D18 this gives one rule: when free g
 **Choice:** Free goods are always the same SKU as the purchased SKU.
 **Why:** Matches every scheme in the brief; the schema has no separate free-item field.
 
+### Phase 2 review (2026-11-08)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-08 | D51 Stock option rules | Three derived rules approved (below) | Precise behaviour for D7, D18, D34, D42, D47 |
+| 2026-11-08 | D52 Historical order size | 1–3 lines, 1–3 cases per line | Close to the brief's ₹5,000 average order |
+| 2026-11-08 | D53 Historical order records | No export batch; engine-priced; current credit snapshot; clearly marked as seeded history | Honest, traceable demo data |
+
+### D51. Stock option rules (refines D7, D18, D34, D42, D47)
+**Choice:**
+1. A "with free goods" option is offered only if it actually includes free cases. Example: 10 available, 10 asked → only "10 without free goods" (9 cases with no free goods is never better).
+2. The "without free goods" alternative (D42) also applies when more than the available stock is asked for, capped at what is available. Example: 400 biscuit cases asked, 340 available → "309 + 30 free" or "340 without free goods".
+3. D34 and D47 share one outcome, `OFFER_CHANGED`, which returns the current best line. The engine cannot tell a bypass attempt from stock that came back, and in both cases the retailer must re-confirm.
+**Why:** Options are always genuinely useful, consistent whether stock is short or exceeded, and the best-offer rule can't be bypassed.
+
+### D52. Historical order size
+**Choice:** Seeded historical orders have 1–3 lines with 1–3 paid cases each.
+**Why:** The first seed produced ₹10,730–₹1,27,215 orders against the brief's ₹5,000 average; smaller orders are realistic for kirana shops.
+
+### D53. Historical (seeded) order records
+**Choice:**
+- No export batch association: they were keyed into Tally before the app existed.
+- Totals are calculated by the domain engine at the order's date and the retailer's tier.
+- The credit snapshot uses the retailer's current figures (the historical ones are unknown).
+- They are clearly identifiable as seeded historical demo records, not orders created through the application.
+**Why:** The demo needs order history (repeat order, AI capture context) without pretending it came from the app.
+
 ---
 
 ## Implementation Instructions
