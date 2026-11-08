@@ -2,7 +2,7 @@
 // global setup, the test helpers and scripts/test-db-init.ts.
 
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import {
   TEST_MARKER_TABLE,
   UnsafeTestDatabaseError,
@@ -30,6 +30,16 @@ export async function hasTestMarker(db: PrismaClient): Promise<boolean> {
     `SELECT to_regclass('public."${TEST_MARKER_TABLE}"') IS NOT NULL AS exists`,
   );
   return rows[0]?.exists === true;
+}
+
+/**
+ * Empties every app table, after re-checking the marker on this very connection.
+ * The marker table itself is not a Prisma model, so it survives.
+ */
+export async function resetTestDatabase(db: PrismaClient): Promise<void> {
+  await assertTestMarker(db);
+  const tables = Object.values(Prisma.ModelName).map((name) => `"${name}"`).join(", ");
+  await db.$executeRawUnsafe(`TRUNCATE ${tables} RESTART IDENTITY CASCADE`);
 }
 
 export async function assertTestMarker(db: PrismaClient): Promise<void> {
