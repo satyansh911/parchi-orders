@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // Unit tests: pure and fast, never touch a database.
-// Integration tests (*.int.test.ts) run separately: vitest.integration.config.ts.
+// Integration tests (*.int.test.ts) run separately: vitest.integration.config.mts.
 export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
