@@ -7,9 +7,10 @@ import { AccessError } from "@/server/auth/access-error";
 import { requirePageViewer } from "@/server/auth/viewer";
 import { getOrder } from "@/server/data/orders";
 import { db } from "@/server/db";
+import { OrderActions } from "../order-actions";
 import { OrderAgainButton } from "../order-again";
 import { StatusBadge } from "../status-badge";
-import { ORDER_AGAIN_STRING_KEYS } from "../strings";
+import { ORDER_ACTION_STRING_KEYS, ORDER_AGAIN_STRING_KEYS } from "../strings";
 
 export const metadata = { title: "Order · Parchi Orders" };
 
@@ -51,6 +52,7 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
           {order.source === "HISTORICAL_SEED" && <> · {t("orders.historical")}</>}
         </p>
         {order.status === "CREDIT_HOLD" && <p className="rounded-card bg-warn-soft p-2 text-sm font-medium text-warn">{t("order.holdNote")}</p>}
+        {order.cancelRequestedAt && <p className="rounded-card bg-paper-dim p-2 text-sm">{t("order.requested", { date: formatDateTime(order.cancelRequestedAt, locale) })}</p>}
       </header>
 
       <section className="flex flex-col gap-2">
@@ -84,6 +86,7 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
       <p className="text-xs text-ink-muted">{t("order.frozenNote")}</p>
 
       <OrderAgainButton userId={viewer.userId} orderId={order.id} s={pickStrings(t, ORDER_AGAIN_STRING_KEYS)} />
+      <OrderActions orderId={order.id} status={order.status} cancelRequested={order.cancelRequestedAt !== null} s={pickStrings(t, ORDER_ACTION_STRING_KEYS)} />
     </div>
   );
 }

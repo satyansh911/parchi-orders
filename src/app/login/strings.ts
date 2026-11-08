@@ -6,7 +6,7 @@ export const LOGIN_STRING_KEYS = [
   "login.logIn", "login.checking", "login.changeNumber",
   "login.error.LOGIN_DISABLED", "login.error.INVALID_PHONE", "login.error.INVALID_CREDENTIALS",
   "login.error.INVALID_INPUT", "login.error.RATE_LIMITED", "login.error.UNAUTHENTICATED",
-  "login.error.NOT_FOUND", "login.error.RETAILER_REQUIRED",
+  "login.error.NOT_FOUND", "login.error.RETAILER_REQUIRED", "login.error.NOT_ALLOWED",
 ] as const;
 
 export type LoginStrings = Record<(typeof LOGIN_STRING_KEYS)[number], string>;

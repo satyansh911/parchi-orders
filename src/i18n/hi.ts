@@ -37,6 +37,8 @@ export const hi: Record<MessageKey, string> = {
   "login.error.NOT_FOUND": "कुछ गड़बड़ हो गई। फिर से कोशिश करें।",
   "login.error.RETAILER_REQUIRED": "कुछ गड़बड़ हो गई। फिर से कोशिश करें।",
 
+  "login.error.NOT_ALLOWED": "कुछ गड़बड़ हो गई। फिर से कोशिश करें।",
+
   "shell.logout": "लॉग आउट",
   "shell.loggingOut": "लॉग आउट हो रहा है…",
 
@@ -150,4 +152,17 @@ export const hi: Record<MessageKey, string> = {
   "order.again.unavailable": "{n} सामान अभी उपलब्ध नहीं हैं। कार्ट में चिह्नित हैं।",
   "order.again.locked": "एक ऑर्डर अभी भेजा जा रहा है। पहले उसे पूरा होने दें।",
   "order.notFound": "यह ऑर्डर नहीं मिला।",
+
+  "order.cancel": "ऑर्डर रद्द करें",
+  "order.cancel.confirm": "यह ऑर्डर रद्द करें? इसके लिए रखा स्टॉक छोड़ दिया जाएगा।",
+  "order.cancel.yes": "हाँ, रद्द करें",
+  "order.cancel.no": "ऑर्डर रखें",
+  "order.requestCancel": "ऑफ़िस से रद्द करने को कहें",
+  "order.requested": "आपने {date} को ऑफ़िस से यह ऑर्डर रद्द करने को कहा।",
+  "order.noteLabel": "ऑफ़िस के लिए संदेश (वैकल्पिक)",
+  "order.noteRequiredLabel": "ऑफ़िस के लिए संदेश",
+  "order.sendNote": "ऑफ़िस को संदेश भेजें",
+  "order.send": "भेजें",
+  "order.noteSent": "आपका संदेश ऑफ़िस को भेज दिया गया।",
+  "order.notAllowed": "अब यह ऑर्डर पर नहीं हो सकता। कृपया पेज रीफ़्रेश करें।",
 };

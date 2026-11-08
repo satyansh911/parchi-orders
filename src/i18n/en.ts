@@ -35,6 +35,8 @@ export const en = {
   "login.error.NOT_FOUND": "Something went wrong. Please try again.",
   "login.error.RETAILER_REQUIRED": "Something went wrong. Please try again.",
 
+  "login.error.NOT_ALLOWED": "Something went wrong. Please try again.",
+
   "shell.logout": "Log out",
   "shell.loggingOut": "Logging out…",
 
@@ -148,6 +150,19 @@ export const en = {
   "order.again.unavailable": "{n} items are unavailable now. They are marked in the cart.",
   "order.again.locked": "An order is still being placed. Please finish it first.",
   "order.notFound": "This order can't be found.",
+
+  "order.cancel": "Cancel order",
+  "order.cancel.confirm": "Cancel this order? The stock held for it will be released.",
+  "order.cancel.yes": "Yes, cancel",
+  "order.cancel.no": "Keep order",
+  "order.requestCancel": "Ask the office to cancel",
+  "order.requested": "You asked the office to cancel this order on {date}.",
+  "order.noteLabel": "Message for the office (optional)",
+  "order.noteRequiredLabel": "Message for the office",
+  "order.sendNote": "Send a note to the office",
+  "order.send": "Send",
+  "order.noteSent": "Your note was sent to the office.",
+  "order.notAllowed": "This can't be done for the order any more. Please refresh.",
 } as const;
 
 export type MessageKey = keyof typeof en;
