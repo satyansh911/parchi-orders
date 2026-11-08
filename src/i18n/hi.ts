@@ -39,4 +39,23 @@ export const hi: Record<MessageKey, string> = {
 
   "shell.logout": "लॉग आउट",
   "shell.loggingOut": "लॉग आउट हो रहा है…",
+
+  "catalogue.title": "सामान",
+  "catalogue.searchLabel": "सामान खोजें",
+  "catalogue.searchPlaceholder": "खोजें: बिस्कुट, चाय पत्ती…",
+  "catalogue.categories": "श्रेणियाँ",
+  "catalogue.allCategories": "सभी",
+  "catalogue.perCase": "/ पेटी",
+  "catalogue.gstExtra": "+ GST",
+  "catalogue.perPiece": "{price} / पीस",
+  "catalogue.piecesPerCase": "1 पेटी = {n} पीस",
+  "catalogue.mrp": "MRP {price}",
+  "catalogue.inStock": "स्टॉक में",
+  "catalogue.lowStock": "सिर्फ़ {n} पेटी बची",
+  "catalogue.outOfStock": "स्टॉक ख़त्म",
+  "catalogue.noMatch": "“{query}” से कोई सामान नहीं मिला।",
+  "catalogue.clearSearch": "खोज हटाएँ",
+  "catalogue.empty": "अभी कोई सामान उपलब्ध नहीं है।",
+  "catalogue.resultCount": "{n} सामान",
+  "catalogue.loadError": "सामान की सूची लोड नहीं हो पाई।",
 };
