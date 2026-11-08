@@ -4,6 +4,7 @@ import { requirePageViewer } from "@/server/auth/viewer";
 import { getCatalogue } from "@/server/catalogue/catalogue";
 import { db } from "@/server/db";
 import { CatalogueView } from "./catalogue-view";
+import { STEPPER_STRING_KEYS } from "../cart/strings";
 import { CATALOGUE_STRING_KEYS } from "./strings";
 
 export const metadata = { title: "Catalogue · Parchi Orders" };
@@ -25,7 +26,14 @@ async function CatalogueContent() {
   return (
     <div lang={locale}>
       <h1 className="sr-only">{t("catalogue.title")}</h1>
-      <CatalogueView items={catalogue.items} categories={catalogue.categories} locale={locale} s={pickStrings(t, CATALOGUE_STRING_KEYS)} />
+      <CatalogueView
+        userId={viewer.userId}
+        items={catalogue.items}
+        categories={catalogue.categories}
+        locale={locale}
+        s={pickStrings(t, CATALOGUE_STRING_KEYS)}
+        stepper={pickStrings(t, STEPPER_STRING_KEYS)}
+      />
     </div>
   );
 }

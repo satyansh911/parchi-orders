@@ -6,13 +6,15 @@ import { matchesQuery } from "@/domain/catalogue/search";
 import { fill } from "@/i18n/fill";
 import type { Locale } from "@/i18n/messages";
 import type { CatalogueCategory, CatalogueItem } from "@/server/catalogue/catalogue";
+import { CatalogueStepper } from "../cart/cart-controls";
+import type { StepperStrings } from "../cart/strings";
 import { ProductRow } from "./product-row";
 import type { CatalogueStrings } from "./strings";
 
 // Instant client-side search and category filter (D82). Search and category
 // live in the URL (replaceState: no server round trip per keystroke) so the
 // back button and a shared link keep them.
-export function CatalogueView({ items, categories, locale, s }: { items: CatalogueItem[]; categories: CatalogueCategory[]; locale: Locale; s: CatalogueStrings }) {
+export function CatalogueView({ userId, items, categories, locale, s, stepper }: { userId: string; items: CatalogueItem[]; categories: CatalogueCategory[]; locale: Locale; s: CatalogueStrings; stepper: StepperStrings }) {
   const params = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [category, setCategory] = useState(params.get("c") ?? "");
@@ -95,7 +97,13 @@ export function CatalogueView({ items, categories, locale, s }: { items: Catalog
       ) : (
         <ul className="flex flex-col gap-3 sm:grid sm:grid-cols-2">
           {visible.map((item) => (
-            <ProductRow key={item.id} item={item} locale={locale} s={s} />
+            <ProductRow
+              key={item.id}
+              item={item}
+              locale={locale}
+              s={s}
+              action={<CatalogueStepper userId={userId} skuId={item.id} name={locale === "hi" ? item.nameHi : item.nameEn} disabled={item.stock.status === "OUT"} s={stepper} />}
+            />
           ))}
         </ul>
       )}
