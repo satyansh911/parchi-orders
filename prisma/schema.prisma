@@ -291,6 +291,8 @@ model Order {
 
   @@index([status, placedAt])
   @@index([retailerId, placedAt])
+  /// D89: open-orders credit query (retailerId = ? AND status IN open statuses).
+  @@index([retailerId, status])
   @@index([awaitingRetailerAck])
 }
 

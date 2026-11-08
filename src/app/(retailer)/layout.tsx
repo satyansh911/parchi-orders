@@ -1,5 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { getTranslator, pickStrings } from "@/i18n/server";
+import { formatPaise } from "@/i18n/format";
+import { getCreditSummary } from "@/server/data/credit";
 import { getRetailerAccount } from "@/server/data/retailers";
 import { db } from "@/server/db";
 import { getViewer } from "@/server/auth/viewer";
@@ -30,10 +32,17 @@ export default function RetailerLayout({ children }: { children: ReactNode }) {
 async function HeaderContent() {
   const viewer = await getViewer();
   if (!viewer || viewer.role !== "RETAILER") return null; // the page shows login / not-found
-  const [{ locale, t }, account] = await Promise.all([getTranslator(), getRetailerAccount(db, viewer)]);
+  const [{ locale, t }, account, credit] = await Promise.all([getTranslator(), getRetailerAccount(db, viewer), getCreditSummary(db, viewer)]);
   return (
     <>
-      <p className="min-w-0 flex-1 truncate font-semibold" lang={locale}>{account.shopName}</p>
+      <div className="min-w-0 flex-1" lang={locale}>
+        <p className="truncate font-semibold leading-tight">{account.shopName}</p>
+        {credit.alreadyOverPaise > 0 ? (
+          <p className="truncate text-xs font-medium text-warn">{t("credit.over", { amount: formatPaise(credit.alreadyOverPaise) })}</p>
+        ) : (
+          <p className="truncate text-xs text-ink-muted">{t("credit.available", { amount: formatPaise(credit.availablePaise) })}</p>
+        )}
+      </div>
       <LocaleToggle current={locale} label={t("locale.switchTo")} ariaLabel={t("locale.switchLabel")} />
       <LogoutButton label={t("shell.logout")} pendingLabel={t("shell.loggingOut")} />
     </>

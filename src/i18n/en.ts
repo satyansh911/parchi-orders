@@ -56,6 +56,9 @@ export const en = {
   "catalogue.empty": "No products are available right now.",
   "catalogue.resultCount": "{n} products",
   "catalogue.loadError": "Couldn't load the catalogue.",
+
+  "credit.available": "Credit available {amount}",
+  "credit.over": "Over credit limit by {amount}",
 } as const;
 
 export type MessageKey = keyof typeof en;

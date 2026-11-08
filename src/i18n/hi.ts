@@ -58,4 +58,7 @@ export const hi: Record<MessageKey, string> = {
   "catalogue.empty": "अभी कोई सामान उपलब्ध नहीं है।",
   "catalogue.resultCount": "{n} सामान",
   "catalogue.loadError": "सामान की सूची लोड नहीं हो पाई।",
+
+  "credit.available": "उपलब्ध क्रेडिट {amount}",
+  "credit.over": "क्रेडिट सीमा से {amount} ज़्यादा",
 };

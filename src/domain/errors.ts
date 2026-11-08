@@ -10,7 +10,9 @@ export type DomainErrorCode =
   | "TOO_MANY_LINES"
   | "DUPLICATE_SKU"
   | "SKU_INACTIVE"
-  | "ORDER_TOO_LARGE";
+  | "ORDER_TOO_LARGE"
+  | "INVALID_TRANSITION"
+  | "REASON_REQUIRED";
 
 export class DomainError extends Error {
   constructor(
