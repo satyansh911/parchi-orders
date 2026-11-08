@@ -33,3 +33,23 @@ export async function makeRetailer(
 export async function makeDeskUser(db: PrismaClient, phone = "9999900001") {
   return db.user.create({ data: { phone, name: "Desk (test)", role: "DESK" } });
 }
+
+/** A minimal order row for access tests (money values are placeholders). */
+export async function makeOrder(db: PrismaClient, retailerId: string, placedById: string, ref: string) {
+  return db.order.create({
+    data: {
+      clientRequestId: `test-${ref}`,
+      retailerId,
+      placedById,
+      source: "CATALOGUE",
+      status: "PENDING_REVIEW",
+      taxablePaise: 100_000, discountPaise: 0, gstPaise: 5_000, totalPaise: 105_000, originalTotalPaise: 105_000,
+      creditLimitPaise: 5_000_000, availableCreditPaise: 5_000_000, overLimitPaise: 0, creditCheckedAt: new Date(),
+      events: { create: { type: "PLACED", actorId: placedById, toStatus: "PENDING_REVIEW", reason: `internal note ${ref}` } },
+    },
+  });
+}
+
+export async function makeCapture(db: PrismaClient, retailerId: string, createdById: string, rawText: string) {
+  return db.capture.create({ data: { retailerId, createdById, rawText, status: "PARSED" } });
+}
