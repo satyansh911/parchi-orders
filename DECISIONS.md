@@ -892,6 +892,24 @@ R1–R3 were raised on 2026-11-08 and resolved the same day as D70–D72.
 4. If neither exists, Hindi.
 **Why:** The user is unknown before login, so the choice must live on the device until it can be saved to the account.
 
+### Phase 3 review (2026-11-09)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-09 | D73 Protected page status codes (O1) | Keep partial prerendering; generic shell may return HTTP 200 | Fast shell on 3G; no private data before authorization |
+
+### D73. HTTP status codes on protected pages (O1; refines D62)
+**Choice:**
+- Keep partial prerendering. The generic static shell may return HTTP 200.
+- Session-dependent content stays behind `<Suspense>`.
+- Unauthorized retailer or desk content is never rendered or streamed.
+- Wrong-role users see the not-found experience (inside a 200 response).
+- Expired or invalid sessions are redirected to login (client-side, inside a 200 response). With no session cookie at all, the proxy returns a real 307.
+- APIs (route handlers) always return real 401/404 responses.
+- The TDD documents this accurately and never claims protected pages always return HTTP 404 or 307.
+**Rule:** Security takes priority over rendering performance: no private data may enter the response before authorization succeeds.
+**Why:** The static shell keeps first paint fast on slow 3G; correctness of access control does not depend on the status code.
+
 ---
 
 ## Implementation Instructions
