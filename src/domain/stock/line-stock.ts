@@ -29,11 +29,15 @@ export type StockOption = {
   line: PricedLine;
 };
 
-export type LineStockResult =
+/** Result of checking a line with the best offer. */
+export type BestOfferStockResult =
   | { status: "OK"; selection: OfferSelection; line: PricedLine }
   | { status: "OUT_OF_STOCK" }
-  | { status: "STOCK_SHORT"; reason: "MORE_THAN_AVAILABLE" | "FREE_GOODS_DONT_FIT"; options: StockOption[] }
-  | { status: "OFFER_CHANGED"; current: Exclude<LineStockResult, { status: "OFFER_CHANGED" }> };
+  | { status: "STOCK_SHORT"; reason: "MORE_THAN_AVAILABLE" | "FREE_GOODS_DONT_FIT"; options: StockOption[] };
+
+export type LineStockResult =
+  | BestOfferStockResult
+  | { status: "OFFER_CHANGED"; current: BestOfferStockResult };
 
 export type LineStockInput = {
   sku: CatalogueSku;
@@ -58,18 +62,25 @@ export function evaluateLineStock(input: LineStockInput, ctx: PricingContext): L
   assertPaidCases(requestedCases, sku.code);
   assertCaseCount(available, "availableCases");
 
-  if (choice === "WITHOUT_FREE_GOODS") {
-    const best = evaluateLineStock({ ...input, choice: "BEST" }, ctx);
-    const freeGoodsDontFit = best.status === "STOCK_SHORT" && best.reason === "FREE_GOODS_DONT_FIT";
-    if (!freeGoodsDontFit) {
-      // Asking for more than available still gets the normal options.
-      if (best.status === "STOCK_SHORT" || best.status === "OUT_OF_STOCK") return best;
-      return { status: "OFFER_CHANGED", current: best };
-    }
+  const best = evaluateWithBestOffer(sku, requestedCases, available, ctx);
+  if (choice === "BEST") return best;
+
+  // choice === "WITHOUT_FREE_GOODS"
+  if (best.status === "STOCK_SHORT" && best.reason === "FREE_GOODS_DONT_FIT") {
     const line = priceLine({ sku, paidCases: requestedCases }, ctx, { excludeFreeGoods: true });
     return { status: "OK", selection: "WITHOUT_FREE_GOODS_STOCK_SHORT", line };
   }
+  // Asking for more than available still gets the normal options.
+  if (best.status !== "OK") return best;
+  return { status: "OFFER_CHANGED", current: best };
+}
 
+function evaluateWithBestOffer(
+  sku: CatalogueSku,
+  requestedCases: number,
+  available: number,
+  ctx: PricingContext,
+): BestOfferStockResult {
   if (available === 0) return { status: "OUT_OF_STOCK" };
 
   const fits = (line: PricedLine) => line.paidCases + line.freeCases <= available;
