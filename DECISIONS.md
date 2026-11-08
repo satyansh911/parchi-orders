@@ -657,6 +657,83 @@ O1–O4 were raised on 2026-11-07 and resolved the same day as D32–D35. Past-o
 **Why:** Realistic demo data that is obviously not real.
 **Before production:** verify that the brand names do not conflict with real businesses or trademarks.
 
+### Phase 1 review and Phase 2 decisions (2026-11-08)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-08 | D38 Database region | Neon Singapore (ap-southeast-1) primary; Vercel functions in sin1 | ~4x lower latency; colocated app and DB |
+| 2026-11-08 | D39 Database TLS | `sslmode=verify-full&channel_binding=require` everywhere | Verified certificate and hostname |
+| 2026-11-08 | D40 Old US database | Kept untouched until major phases and deployment are verified | Safe rollback point |
+| 2026-11-08 | D41 Demo GST, all categories | Biscuits, tea, snacks, spices 5%; detergent, cleaners 18% | Demo only; verify against HSN |
+| 2026-11-08 | D42 Free goods short, single scheme (P1) | Offer max paid with free goods, or requested qty without free goods | Explicit choice, no lost sale |
+| 2026-11-08 | D43 Scheme dates (P2) | Half-open window; date-only dates are whole IST calendar days | Unambiguous expiry |
+| 2026-11-08 | D44 Nudges (P3) | At most one useful nudge per line | Uncluttered, between customers |
+| 2026-11-08 | D45 Order size limits (P4) | ≤ 999 cases per line, ≤ ₹1 crore per order | Stays within Int columns; far above real orders |
+| 2026-11-08 | D46 Other-offer label (P5) | Named only if a different offer type | Avoids noise for slab vs slab |
+| 2026-11-08 | D47 Stale offer choice (P6) | Return OFFER_CHANGED, retailer re-confirms | Never switch silently |
+| 2026-11-08 | D48 Duplicate SKU lines (P7) | Rejected | Merging could silently cross a threshold |
+| 2026-11-08 | D49 Integration test database (P8) | Separate Neon branch via TEST_DATABASE_URL, guarded | Real Postgres concurrency, no risk to real data |
+| 2026-11-08 | D50 Free goods SKU | Always the same SKU as purchased | Matches the brief's schemes |
+
+### D38. Database region
+**Choice:** The Neon project in AWS Asia Pacific (Singapore, ap-southeast-1) is the primary development database. Vercel functions run in `sin1` (vercel.json) so the app and database are colocated.
+**Why:** Measured median query round trip from the developer's machine fell from 326 ms (us-east-2) to 81 ms (about 4x); in production the functions sit next to the database.
+
+### D39. Database TLS
+**Choice:** Both connection strings (local and production) use `sslmode=verify-full&channel_binding=require`. Verified: TLS 1.3, certificate trusted, and a connection by raw IP is rejected because the hostname must match the certificate.
+**Why:** Full certificate and hostname verification, and no reliance on the pg driver's changing defaults.
+
+### D40. Old US database
+**Choice:** Keep the old us-east-2 Neon project untouched (no deletes, writes or resets) until the major development phases are complete and the deployment is verified. Its connection strings are kept locally in a git-ignored backup file.
+**Why:** A known-good rollback point at no cost.
+
+### D41. Demo GST rates for all categories (extends D35)
+**Choice:** Biscuits 5%, tea 5%, snacks 5%, spices 5%, detergent 18%, cleaners 18%. Demo assumptions only, not tax advice. GST stays configurable per SKU; actual HSN classification and rates must be verified before production.
+**Why:** Consistent food / home-care demo split.
+
+### D42. Free goods that don't fit, single free-goods scheme (P1; refines D7)
+**Choice:** When the requested paid quantity fits in stock but its free cases don't (e.g. 335 biscuit cases with 340 available), offer two options and let the retailer pick:
+- the largest paid quantity whose paid + free cases fit (309 + 30 free = 339), or
+- the requested quantity without the free goods (335).
+Nothing is switched silently. Together with D18 this gives one rule: when free goods don't fit, the alternative is the requested quantity with the best offer that has no free goods (a discount if one applies, otherwise none). This choice is only accepted when the free goods really don't fit (D34).
+**Why:** The retailer chooses explicitly, and the sale isn't lost.
+
+### D43. Scheme validity dates (P2)
+**Choice:**
+- A scheme is active on the half-open window `[startsAt, endsAt)`: active at its start instant, inactive at its end instant.
+- Date-only dates are IST calendar dates and include the whole day: "valid 1–31 Oct" means from 1 Oct 00:00 IST up to (not including) 1 Nov 00:00 IST.
+- Instants are stored in UTC.
+- Activity is evaluated with server time at submission and then frozen on the order (D22). The cart preview uses the server time sent with the page.
+**Why:** Removes ambiguity about the last day and about time zones.
+
+### D44. Nudges (P3; refines D19)
+**Choice:** At most one useful nudge per line. Among the next free-goods multiple and the next slab, show the one needing the fewest extra cases, and only if it beats the line's current offer and stock can cover it (including free cases). On a tie, show the larger benefit.
+**Why:** One clear prompt is useful between customers; several are clutter.
+
+### D45. Order size limits (P4)
+**Choice:** At most 999 paid cases per line and at most ₹1 crore (1,00,00,00,000 paise) per order total; above that the order is rejected with `ORDER_TOO_LARGE`. At most 50 lines per order (Phase 0 contract).
+**Why:** Keeps every amount far inside the database's Int range (about ₹2.14 crore) without BigInt, and is far above any real kirana order.
+
+### D46. Other-offer label (P5; refines D2)
+**Choice:** The "also eligible" offer is named only when it is a different type from the applied one (free goods vs discount). A lower slab of the same type is not named.
+**Why:** "Also eligible: 3% off" next to an applied 5% slab is noise.
+
+### D47. Stale offer choice at submission (P6)
+**Choice:** If the retailer chose the no-free-goods option because stock was short, but at submission the free goods fit again, the server returns `OFFER_CHANGED` and the retailer re-confirms. It never switches offers silently.
+**Why:** Consistent with "never switch schemes or quantities silently" (D18).
+
+### D48. Duplicate SKU lines (P7)
+**Choice:** An order containing the same SKU on more than one line is rejected (`DUPLICATE_SKU`). The cart keeps one line per SKU.
+**Why:** Merging lines could silently cross a scheme threshold.
+
+### D49. Integration test database (P8)
+**Choice:** Integration tests (stock reservation, concurrency) run against a separate Neon branch reached through `TEST_DATABASE_URL`, with `pnpm test:integration`. Unit tests never touch a database. A guard refuses to run if the test URL points at the primary database, at any protected host (e.g. the old US database), or at a database without the test marker.
+**Why:** Real Postgres locking behaviour, with no way to wipe real data by mistake.
+
+### D50. Free goods SKU
+**Choice:** Free goods are always the same SKU as the purchased SKU.
+**Why:** Matches every scheme in the brief; the schema has no separate free-item field.
+
 ---
 
 ## Implementation Instructions
