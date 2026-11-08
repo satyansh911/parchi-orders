@@ -32,7 +32,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function planPastOrders(): PastOrderPlan[] {
   const rand = mulberry32(20261108);
-  const pick = <T>(items: readonly T[]) => items[Math.floor(rand() * items.length)];
   const plans: PastOrderPlan[] = [];
 
   for (const retailer of RETAILERS) {
@@ -40,12 +39,14 @@ export function planPastOrders(): PastOrderPlan[] {
     const orderCount = 3 + Math.floor(rand() * 4); // 3–6
 
     for (let index = 1; index <= orderCount; index++) {
-      const lineCount = Math.min(regulars.length, 2 + Math.floor(rand() * 4)); // 2–5
-      const lines = pickDistinct(regulars, lineCount, rand).map((skuCode) => ({
-        skuCode,
-        // Mostly small orders, sometimes 10–12 cases so free goods appear in history.
-        paidCases: rand() < 0.15 ? pick([10, 12]) : 1 + Math.floor(rand() * 8),
-      }));
+      // D52: 1–3 lines of 1–3 cases, close to the brief's ₹5,000 average order.
+      // A retailer with fixed regulars gets its first three in the first order,
+      // so their history is guaranteed to contain them.
+      const skuCodes =
+        index === 1 && FIXED_REGULARS[retailer.code]
+          ? regulars.slice(0, 3)
+          : pickDistinct(regulars, 1 + Math.floor(rand() * 3), rand);
+      const lines = skuCodes.map((skuCode) => ({ skuCode, paidCases: 1 + Math.floor(rand() * 3) }));
       // About 10 days apart, at a shop-hours time between 09:00 and 20:00 IST.
       const day = FIRST_ORDER_DAY_UTC + ((index - 1) * 10 + Math.floor(rand() * 4)) * DAY_MS;
       const minutesAfter0330Utc = Math.floor(rand() * 11 * 60);

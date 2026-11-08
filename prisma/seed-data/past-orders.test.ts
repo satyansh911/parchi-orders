@@ -46,13 +46,15 @@ describe("past order plan (D36)", () => {
     }
   });
 
-  it("uses known SKUs, one line per SKU, whole cases within the line limit", () => {
+  it("uses known SKUs, one line per SKU, 1–3 lines of 1–3 cases (D52)", () => {
     for (const p of plans) {
       const codes = p.lines.map((l) => l.skuCode);
       expect(new Set(codes).size).toBe(codes.length);
+      expect(p.lines.length).toBeGreaterThanOrEqual(1);
+      expect(p.lines.length).toBeLessThanOrEqual(3);
       for (const l of p.lines) {
         expect(catalogue.has(l.skuCode)).toBe(true);
-        expect(Number.isInteger(l.paidCases) && l.paidCases >= 1 && l.paidCases <= 999).toBe(true);
+        expect([1, 2, 3]).toContain(l.paidCases);
       }
     }
   });
@@ -70,15 +72,17 @@ describe("past order plan (D36)", () => {
 
   it("prices every planned order with the domain engine at the retailer's tier and order date", () => {
     const tierOf = new Map(RETAILERS.map((r) => [r.code, TIERS.find((t) => t.code === r.tier)!.discountBps]));
-    let withFreeGoods = 0;
-    for (const p of plans) {
+    const totals = plans.map((p) => {
       const order = priceOrder(
         p.lines.map((l) => ({ sku: catalogue.get(l.skuCode)!, paidCases: l.paidCases })),
         { tierDiscountBps: tierOf.get(p.retailerCode)!, now: p.placedAt },
       );
       expect(order.totalPaise).toBe(order.lines.reduce((sum, l) => sum + l.lineTotalPaise, 0));
-      withFreeGoods += order.lines.filter((l) => l.freeCases > 0).length;
-    }
-    expect(withFreeGoods).toBeGreaterThan(0); // history shows schemes in use
+      return order.totalPaise;
+    });
+    // Typical kirana orders (D52): the median stays within a few thousand rupees of the brief's ₹5,000.
+    const median = [...totals].sort((a, b) => a - b)[Math.floor(totals.length / 2)];
+    expect(median).toBeGreaterThan(200_000); // ₹2,000
+    expect(median).toBeLessThan(1_500_000); // ₹15,000
   });
 });
