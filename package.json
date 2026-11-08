@@ -19,7 +19,8 @@
     "db:seed": "prisma db seed",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:db:init": "tsx scripts/test-db-init.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "test:e2e:seed": "tsx scripts/test-e2e-seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
