@@ -5,7 +5,11 @@ import { defineConfig } from "vitest/config";
 // Integration tests (*.int.test.ts) run separately: vitest.integration.config.mts.
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Test-only: Next.js enforces server-only in its build.
+      "server-only": fileURLToPath(new URL("./src/server/testing/server-only-stub.ts", import.meta.url)),
+    },
   },
   test: {
     environment: "node",

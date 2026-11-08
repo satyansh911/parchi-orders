@@ -2,18 +2,30 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { requestOtpAction, verifyOtpAction, type LoginActionResult } from "./actions";
+import type { ActionResult } from "@/server/auth/action-core";
+import { requestOtpAction, verifyOtpAction, type LoginOutcome } from "./actions";
 
 // Minimal functional login (D65). Full design, language picker and Hindi
 // strings come in Phase 4.
 
-const MESSAGES: Record<Exclude<LoginActionResult, { ok: true }>["error"], string> = {
+type Failure = Extract<ActionResult<LoginOutcome>, { ok: false }>["error"] | Extract<LoginOutcome, { error: string }>["error"];
+
+const MESSAGES: Record<Failure, string> = {
   LOGIN_DISABLED: "SMS login is not configured.",
   INVALID_PHONE: "Enter a 10-digit mobile number.",
   INVALID_CREDENTIALS: "Wrong number or code. Please try again.",
   INVALID_INPUT: "Something was wrong with the form. Please try again.",
   RATE_LIMITED: "Too many attempts. Please wait 15 minutes and try again.",
+  UNAUTHENTICATED: "Please log in again.",
+  NOT_FOUND: "Something went wrong. Please try again.",
+  RETAILER_REQUIRED: "Something went wrong. Please try again.",
 };
+
+/** The failure in a login action result, or null on success. */
+function failureOf(result: ActionResult<LoginOutcome>): Failure | null {
+  if (!result.ok) return result.error;
+  return "error" in result.data ? result.data.error : null;
+}
 
 export function LoginForm() {
   const next = useSearchParams().get("next") ?? undefined;
@@ -27,13 +39,11 @@ export function LoginForm() {
     event.preventDefault();
     startTransition(async () => {
       const result = await requestOtpAction({ phone });
-      if (result.ok) {
-        setPhone(result.phone);
-        setStep("code");
-        setError(null);
-      } else {
-        setError(MESSAGES[result.error]);
-      }
+      const failure = failureOf(result);
+      if (failure) return setError(MESSAGES[failure]);
+      if (result.ok && "phone" in result.data) setPhone(result.data.phone);
+      setStep("code");
+      setError(null);
     });
   }
 
@@ -41,8 +51,8 @@ export function LoginForm() {
     event.preventDefault();
     startTransition(async () => {
       // On success the action redirects; it only returns on failure.
-      const result = await verifyOtpAction({ phone, code, next });
-      if (!result.ok) setError(MESSAGES[result.error]);
+      const failure = failureOf(await verifyOtpAction({ phone, code, next }));
+      if (failure) setError(MESSAGES[failure]);
     });
   }
 
