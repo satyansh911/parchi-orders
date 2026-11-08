@@ -1,7 +1,8 @@
 // Writes the planned past orders (D36), priced by the same domain engine the
 // app uses, through the same row-to-domain mapper as the server.
 //
-// They are completed history from before the app existed: status EXPORTED,
+// They are completed history from before the app existed: source
+// HISTORICAL_SEED (D66) so they are never mistaken for app orders, status EXPORTED,
 // no ExportBatch (they were keyed into Tally by hand), and current stock is
 // not touched. The credit snapshot is not known historically, so it is
 // recorded as the retailer's current limit minus outstanding.
@@ -47,7 +48,7 @@ export async function seedPastOrders(db: PrismaClient) {
         clientRequestId: `seed-${plan.retailerCode}-${plan.index}`,
         retailerId: retailer.id,
         placedById: user.id,
-        source: "CATALOGUE",
+        source: "HISTORICAL_SEED",
         status: "EXPORTED",
         taxablePaise: priced.taxablePaise,
         discountPaise: priced.discountPaise,

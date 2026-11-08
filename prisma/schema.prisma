@@ -51,6 +51,8 @@ enum OrderSource {
   CATALOGUE
   REPEAT
   AI_CAPTURE
+  /// Synthetic history seeded for the demo, from before the app existed (D53, D66).
+  HISTORICAL_SEED
 }
 
 /// Why the line's scheme was chosen (D2, D18, D34, D42).
