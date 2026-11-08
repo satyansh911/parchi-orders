@@ -12,8 +12,8 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetTestDatabase(db));
 
 const NOW = new Date("2026-11-09T10:00:00Z");
-const demo: LoginDeps = { db, otp: demoOtpProvider, now: () => NOW };
-const disabled: LoginDeps = { db, otp: null, now: () => NOW };
+const demo: LoginDeps = { db, otp: demoOtpProvider, now: () => NOW, clientIp: "203.0.113.1" };
+const disabled: LoginDeps = { db, otp: null, now: () => NOW, clientIp: "203.0.113.1" };
 
 describe("requestLoginCode", () => {
   it("returns the demo code and the normalised number", async () => {

@@ -12,6 +12,7 @@ const MESSAGES: Record<Exclude<LoginActionResult, { ok: true }>["error"], string
   INVALID_PHONE: "Enter a 10-digit mobile number.",
   INVALID_CREDENTIALS: "Wrong number or code. Please try again.",
   INVALID_INPUT: "Something was wrong with the form. Please try again.",
+  RATE_LIMITED: "Too many attempts. Please wait 15 minutes and try again.",
 };
 
 export function LoginForm() {

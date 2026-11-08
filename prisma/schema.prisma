@@ -437,7 +437,8 @@ model ExportBatch {
   orders Order[]
 }
 
-/// D14: fixed-window counters, incremented atomically with INSERT … ON CONFLICT.
+/// D14, D56: fixed-window counters, changed atomically with INSERT … ON CONFLICT.
+/// `key` is a SHA-256 hash, so no phone number or IP is stored. CHECK count >= 0.
 model RateLimitHit {
   key         String
   windowStart DateTime
