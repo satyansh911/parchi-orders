@@ -4,6 +4,8 @@
 // The three SKUs marked BRIEF are copied exactly from the client brief.
 // Dealer prices are per piece (A.1, C.3); case price = piece price x pieces per case.
 
+import { istDayRange } from "../../src/domain/schemes/validity";
+
 export const BRANDS = [
   "Rewa Foods",
   "Kanha Chai",
@@ -139,10 +141,6 @@ export const SCHEMES: SeedScheme[] = [
   freeGoods("SKU-TE-500", 20, 1),
   freeGoods("SKU-CP-100", 10, 1),
   slab("SKU-DW-500", 5, 300),
-  // Expired scheme: must be ignored by the engine.
-  {
-    ...slab("SKU-NM-200", 5, 200),
-    startsAt: new Date("2026-10-01T00:00:00Z"),
-    endsAt: new Date("2026-11-01T00:00:00Z"),
-  },
+  // Expired scheme, "valid 1–31 Oct" in IST (D43): must be ignored by the engine.
+  { ...slab("SKU-NM-200", 5, 200), ...istDayRange("2026-10-01", "2026-10-31") },
 ];

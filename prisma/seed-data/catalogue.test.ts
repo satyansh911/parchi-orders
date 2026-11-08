@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isSchemeActive } from "../../src/domain/schemes/validity";
 import { BRANDS, BRIEF_SKU_CODES, CATEGORIES, DEMO_GST_BPS, SCHEMES, SKUS } from "./catalogue";
 
 const sku = (code: string) => {
@@ -83,6 +84,15 @@ describe("seed catalogue: schemes", () => {
         expect(s.discountBps).toBeLessThanOrEqual(10000);
       }
     }
+  });
+
+  it("include one expired scheme, valid only for October in IST (D43)", () => {
+    const dated = SCHEMES.filter((s) => s.startsAt || s.endsAt);
+    expect(dated).toHaveLength(1);
+    const [expired] = dated;
+    const window = { active: true, startsAt: expired.startsAt ?? null, endsAt: expired.endsAt ?? null };
+    expect(isSchemeActive(window, new Date("2026-10-31T18:29:59Z"))).toBe(true); // 31 Oct 23:59 IST
+    expect(isSchemeActive(window, new Date("2026-11-08T06:00:00Z"))).toBe(false);
   });
 
   it("include a dual-scheme SKU whose stock can't cover free goods at full stock (D18 demo)", () => {
