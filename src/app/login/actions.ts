@@ -1,8 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { LOCALE_COOKIE, parseLocale, toUserLocale } from "@/i18n/locale";
 import { action } from "@/server/auth/action";
 import { requestLoginCode, verifyLoginCode, type LoginError } from "@/server/auth/login-service";
 import { otpProviderFromEnv } from "@/server/auth/otp";
@@ -38,6 +39,9 @@ export const verifyOtpAction = action({
     const result = await verifyLoginCode(await deps(), input, await readSessionToken());
     if (!result.ok) return { error: result.error };
     await writeSessionCookie(result.token, result.expiresAt);
+    // D72: the language picked on the login screen is saved to the account.
+    const picked = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+    if (picked) await db.user.update({ where: { id: result.userId }, data: { locale: toUserLocale(picked) } });
     redirect(safeNextPath(input.next, result.role));
   },
 });

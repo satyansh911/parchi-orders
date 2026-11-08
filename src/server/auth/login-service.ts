@@ -27,7 +27,7 @@ export type RequestCodeResult =
   | { ok: false; error: LoginError };
 
 export type VerifyCodeResult =
-  | { ok: true; token: string; expiresAt: Date; role: Role }
+  | { ok: true; token: string; expiresAt: Date; role: Role; userId: string }
   | { ok: false; error: LoginError };
 
 /** Step 1: ask for a code. Same answer whether or not the number is registered. */
@@ -64,5 +64,5 @@ export async function verifyLoginCode(
 
   await reservation.succeeded(); // a successful login is not a failed attempt
   const { token, expiresAt } = await rotateSession(deps.db, previousToken, user.id, now);
-  return { ok: true, token, expiresAt, role: user.role };
+  return { ok: true, token, expiresAt, role: user.role, userId: user.id };
 }

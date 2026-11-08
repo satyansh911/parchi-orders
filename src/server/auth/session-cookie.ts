@@ -6,7 +6,7 @@ import { sessionCookieName, sessionCookieSettings, type ProtocolContext } from "
 // protocol (D70). Writing and deleting only work in Server Actions and
 // Route Handlers, which is where login and logout happen.
 
-async function protocolContext(): Promise<ProtocolContext> {
+export async function protocolContext(): Promise<ProtocolContext> {
   const h = await headers();
   return { onVercel: process.env.VERCEL === "1", forwardedProto: h.get("x-forwarded-proto") };
 }
