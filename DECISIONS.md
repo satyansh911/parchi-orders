@@ -910,6 +910,91 @@ R1–R3 were raised on 2026-11-08 and resolved the same day as D70–D72.
 **Rule:** Security takes priority over rendering performance: no private data may enter the response before authorization succeeds.
 **Why:** The static shell keeps first paint fast on slow 3G; correctness of access control does not depend on the status code.
 
+### Phase 4: retailer side (2026-11-09)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-09 | D74 Cart preview (Q1) | Server action `previewCart`, debounced | Exact stock stays private; engine stays out of the client bundle |
+| 2026-11-09 | D75 Quote token (Q2 + refinement 1) | Server-signed, retailer-bound quote; full recalculation at placement | Nothing changes silently; quote is never authorization |
+| 2026-11-09 | D76 Request ID lifecycle (Q3 + refinement 2) | Keep ID and payload until resolved; new ID only once resolved | No duplicate orders, no ID reused for an edited cart |
+| 2026-11-09 | D77 Retailer order actions (Q4) | Cancel PENDING_REVIEW; request cancellation on held/review orders; edit and accept-changes in Phase 6 | Shares Phase 6's line-editing engine |
+| 2026-11-09 | D78 Repeat into a non-empty cart (Q5) | Ask "Replace cart" / "Add to cart"; add sums per SKU, capped at 999 | Explicit choice |
+| 2026-11-09 | D79 Over-credit confirmation (Q6 + refinement 4) | Explicit confirmation, re-validated on the server | A stale confirmation can't bypass CREDIT_HOLD |
+| 2026-11-09 | D80 Catalogue layout (Q7) | One product per row at 360 px; two columns from 640 px | Scannable with one thumb |
+| 2026-11-09 | D81 Navigation (Q8) | Bottom bar: Catalogue, Orders, Cart | Thumb reach, minimal |
+| 2026-11-09 | D82 Search (Q9) | Instant client-side filter; names EN/HI, brand, category, glossary words | No round trip per keystroke |
+| 2026-11-09 | D83 Numbers (Q10) | Latin digits, Indian grouping, both languages | Matches bills and Tally |
+| 2026-11-09 | D84 Fonts (Q11) | System fonts only | No web-font download on 3G |
+| 2026-11-09 | D85 Colours (Q12) | Neutral ink/paper, one teal accent, semantic stock colours, light only | Restrained palette (brief) |
+| 2026-11-09 | D86 Installable app (Q13) | Manifest and icons, no service worker | Offline deferred; no private data cached on device |
+| 2026-11-09 | D87 Catalogue caching (Q14) | None in Phase 4; revisit in Phase 7 with measurements | No risk of private prices in caches |
+| 2026-11-09 | D88 End-to-end tests (Q15) | Playwright, 360 px Chromium, guarded test branch only | Real taps, never the primary |
+| 2026-11-09 | D89 Open-orders index | `Order(retailerId, status)` | Matches the credit query exactly |
+| 2026-11-09 | D90 Stale previews (refinement 3) | Debounce; newest request wins; "updating" state | An old response never overwrites a newer cart |
+| 2026-11-09 | D91 Phase 4 security (refinement 5) | D67, D69, D73 preserved | No private data before verification |
+
+### D74. Cart preview on the server (Q1)
+**Choice:** The cart is priced by a `previewCart` server action that runs the same domain functions as placement, called (debounced) after quantity changes. Quantities update on screen immediately; prices follow when the preview returns. The catalogue page receives only stock bands (D26), never exact stock above 20; exact quantities reach the retailer only through the stock-short options they trigger by asking for more (D7).
+**Why:** Keeps inventory private and keeps the pricing engine out of the client bundle (light JS on low-end phones).
+
+### D75. Server-signed quote token (Q2, refinement 1)
+**Choice:**
+- Every preview returns a quote token: a payload plus an HMAC-SHA256 signature made with a server-only key, env `QUOTE_SIGNING_KEY`.
+- The payload is bound to the authenticated retailer and holds a digest of everything the retailer saw: normalised lines (sorted by SKU) with paid cases and offer choice, and per line the case price, applied scheme, free cases, discount, GST and line total. Also the order totals and the credit outcome (hold or not, and the amount over). The token also carries an issue time and a 30-minute expiry.
+- At placement the server verifies the signature, the retailer and the expiry, then **independently recalculates everything** and compares digests. Any difference → `QUOTE_CHANGED` with a fresh preview; nothing is created.
+- The quote is a change detector, never authorization: the session and role are checked first (D67), and the server never uses values from the token, only its own recalculation.
+- If `QUOTE_SIGNING_KEY` is missing, previews and placement fail closed.
+**Why:** The retailer always confirms exactly what will be charged; a forged, altered, expired or other-retailer quote can't be used.
+**Note:** This adds one secret env var. D59 removed `SESSION_SECRET` because session tokens don't need one; this key is different, because a signature needs a secret.
+
+### D76. Request ID lifecycle (Q3, refinement 2)
+**Choice:**
+- The cart holds one `clientRequestId`. When the retailer presses Place, the ID and the exact submitted payload are saved on the device as a pending submission, and the cart is locked.
+- If the response is lost or times out, the app resolves that original request first by re-sending the same ID and payload. The server returns the order if it exists (`alreadyPlaced`). It never reuses the ID for an edited cart.
+- A new ID is generated only once the original request is resolved: after a confirmed success, **or** after a definitive server answer that nothing was created (`QUOTE_CHANGED`, `STOCK_CHANGED`, credit confirmation needed, invalid lines).
+- On the server, the same ID always returns the original order. A unique constraint makes simultaneous duplicates collapse to one order.
+**Why:** Flaky 3G must never create duplicate orders.
+**Interpretation:** Read literally, "generate a new ID only after confirmed success" would leave a retailer whose order was rejected (e.g. stock changed) unable to send an edited cart without reusing the ID. A definitive "nothing created" answer is treated as resolution, and the next attempt gets a new ID.
+
+### D77. Retailer actions on their own orders (Q4; sequences D23, D32)
+**Choice:** Phase 4: cancel own PENDING_REVIEW order (releases the reservation exactly once); "Request cancellation" plus note on CREDIT_HOLD / REVIEW_REQUIRED orders (event + `cancelRequestedAt`, no status change). Editing a pending order (D23) and "Accept changes" (D32) come in Phase 6 with the desk's line-editing engine.
+**Why:** Both share Phase 6's engine; the Phase 4 actions are complete on their own.
+
+### D78. Repeat order into a non-empty cart (Q5; refines D9)
+**Choice:** Empty cart: copy the lines in. Non-empty: ask "Replace cart" or "Add to cart"; adding sums cases per SKU, capped at 999. Unavailable items are flagged, never dropped silently.
+**Why:** Explicit choice; one line per SKU (D48).
+
+### D79. Over-credit confirmation (Q6, refinement 4)
+**Choice:**
+- When the preview says the order would exceed available credit, the retailer must confirm: "This order is ₹X over your available credit. It will wait for the office to approve. Place anyway?"
+- Placement sends `confirmCreditHold`.
+- The server recalculates credit with the latest open orders and the recalculated total. If the order now needs a hold and the confirmation wasn't given, or the quote's credit outcome differs, it returns a fresh preview to confirm.
+- The server always decides CREDIT_HOLD itself; a client can never place an over-limit order as PENDING_REVIEW.
+**Why:** A stale or forged confirmation can't bypass CREDIT_HOLD.
+
+### D80–D88. UI, search, numbers, fonts, colours, PWA, caching, E2E (Q7–Q15)
+- **D80:** one product per row at 360 px (88 px pack image, name, large case price "+ GST", per-piece price, MRP small, stock and offer badges, stepper); two columns from 640 px.
+- **D81:** bottom bar with Catalogue, Orders, Cart (with count); capture joins in Phase 5.
+- **D82:** instant client-side filtering of the retailer's loaded list over English and Hindi names, brand, category and the DECISIONS #9 glossary; category and search in the URL.
+- **D83:** Latin digits with Indian grouping (₹1,23,456.00) in both languages.
+- **D84:** system font stack only (Android ships Noto Sans Devanagari).
+- **D85:** neutral ink/paper, one teal accent for actions and offers, green/amber/red for stock; light theme only.
+- **D86:** web app manifest and icons; no service worker (offline deferred; avoids caching private prices on devices).
+- **D87:** no catalogue caching in Phase 4; revisit in Phase 7 with Lighthouse numbers.
+- **D88:** Playwright at a 360 px Chromium viewport for the core journey, against the guarded test branch, seeded by a guarded `test:e2e:seed` (marker required) and served with `DATABASE_URL` pointed at the test branch. Never the primary. Not part of `pnpm check`.
+
+### D89. Open-orders index
+**Choice:** Add `Order(retailerId, status)` (additive migration). Existing `Order` indexes: `(status, placedAt)`, `(retailerId, placedAt)`, `(awaitingRetailerAck)` and the unique keys. The credit query filters `retailerId = ? AND status IN (PENDING_REVIEW, CREDIT_HOLD, REVIEW_REQUIRED, APPROVED)`; `(retailerId, placedAt)` would read every one of the retailer's orders, while `(retailerId, status)` matches the filter directly.
+**Why:** Keeps the credit check cheap as order history grows.
+
+### D90. Stale preview responses (refinement 3)
+**Choice:** `previewCart` calls are debounced. Each carries a sequence number, and a response is applied only if it belongs to the latest request; older responses are discarded. While a recalculation is in flight, prices show an "updating" state and Place order is disabled.
+**Why:** An older response must never overwrite a newer cart.
+
+### D91. Phase 4 security (refinement 5)
+**Choice:** D67, D69 and D73 apply unchanged. No private retailer data is rendered or streamed before session and role verification. Exact stock (above 20) and other retailers' prices are never exposed. All new actions use the D67 wrapper with strict input.
+**Why:** Standing rules.
+
 ---
 
 ## Implementation Instructions
