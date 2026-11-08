@@ -858,9 +858,39 @@ Nothing is switched silently. Together with D18 this gives one rule: when free g
 12. Production cannot accidentally accept the demo OTP.
 
 ### Open items (Phase 3)
-- **R1 (D60):** "Production" for the cookie name should mean "served over HTTPS", not `NODE_ENV=production`. Otherwise a local production build on `http://localhost` (used for the Phase 7 Lighthouse check) would set a `__Host-` cookie that Safari rejects over HTTP.
-- **R2 (D55, D69.12):** The live Vercel demo is itself a production deployment and needs `AUTH_DEMO_OTP=true` deliberately set so reviewers can log in. deployment.md must say so explicitly.
-- **R3 (D15, D65):** Before login the user is unknown, so the language picked on the login screen must be held in a device cookie, then saved to `User.locale` at login. After that, the user's saved locale wins.
+R1–R3 were raised on 2026-11-08 and resolved the same day as D70–D72.
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-08 | D70 Cookie by protocol (R1) | Cookie name and Secure flag follow the real request protocol | Local production builds work over HTTP |
+| 2026-11-08 | D71 Demo OTP on the reviewer deployment (R2) | Explicitly enabled on Vercel, with safeguards | Reviewers must be able to log in |
+| 2026-11-08 | D72 Pre-login language (R3) | Device cookie `parchi_locale`, then `User.locale` | Consistent language before and after login |
+
+### D70. Session cookie follows the request protocol (R1; refines D60)
+**Choice:**
+- HTTPS: `__Host-parchi_session`, Secure, HttpOnly, SameSite=Lax, Path=/, no Domain.
+- Local HTTP: `parchi_session`, HttpOnly, SameSite=Lax, Path=/, not Secure.
+- Protocol detection trusts the `x-forwarded-proto` header only when running on Vercel (`VERCEL=1`), where Vercel's edge sets it and clients can't override it. Anywhere else, forwarded headers are ignored and the request is treated as HTTP.
+- Tested for both configurations, including a spoofed header off Vercel.
+**Why:** `NODE_ENV=production` would break local production builds on `http://localhost` (Phase 7 Lighthouse), and an untrusted forwarded header must never decide security settings.
+
+### D71. Demo OTP on the reviewer deployment (R2; refines D55)
+**Choice:** The controlled Vercel reviewer deployment explicitly sets `AUTH_DEMO_OTP=true`. Safeguards:
+- The default remains false everywhere else.
+- Only synthetic demo accounts and data exist.
+- All phone and IP rate limits stay on.
+- No real customer information is exposed.
+- deployment.md states clearly that this is a controlled demo login mechanism, not production-grade SMS authentication.
+- Real SMS integration remains deferred.
+**Why:** Reviewers need to log in; the safeguards keep this from looking or acting like real authentication.
+
+### D72. Pre-login language (R3; refines D15, implemented in Phase 4)
+**Choice:** Language precedence:
+1. Before login, the device cookie `parchi_locale` (`hi` or `en`).
+2. After a successful login, the user's `User.locale` takes precedence.
+3. The locale selected on the login screen is saved to `User.locale` at login.
+4. If neither exists, Hindi.
+**Why:** The user is unknown before login, so the choice must live on the device until it can be saved to the account.
 
 ---
 
