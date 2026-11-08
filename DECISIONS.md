@@ -760,6 +760,107 @@ Nothing is switched silently. Together with D18 this gives one rule: when free g
 - The credit snapshot uses the retailer's current figures (the historical ones are unknown).
 - They are clearly identifiable as seeded historical demo records, not orders created through the application.
 **Why:** The demo needs order history (repeat order, AI capture context) without pretending it came from the app.
+**Note:** With 1–3 lines of 1–3 cases, the seeded median order is ₹11,566 (about 2.3x the brief's ₹5,000) because A.1 case prices run ₹777–₹5,460. Totals are not manipulated to hit ₹5,000; the TDD states this discrepancy openly.
+
+### Phase 3: authentication and roles (2026-11-08)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-08 | D54 OTP mechanism (Q1) | `OtpProvider` interface; demo provider accepts only 123456; no challenge table | Real SMS later = one new provider |
+| 2026-11-08 | D55 Demo OTP switch (Q2) | `AUTH_DEMO_OTP=true` required; disabled by default | Production can't accidentally accept 123456 |
+| 2026-11-08 | D56 OTP brute-force limits (Q3) | 5 failed checks/phone and 20/IP per 15 min; 5 requests/phone per 15 min | Ready for real SMS |
+| 2026-11-08 | D57 Session expiry (Q4) | Fixed 7 days from login | As D13; simplest to reason about |
+| 2026-11-08 | D58 Session caching (Q5) | None; re-read from DB on every render and action | Logout and demotion apply immediately |
+| 2026-11-08 | D59 Session token (Q6) | 32 random bytes; store SHA-256 only; SESSION_SECRET removed | No secret adds nothing for a 256-bit random token |
+| 2026-11-08 | D60 Session cookie (Q7) | `__Host-parchi_session` (prod) / `parchi_session` (local); HttpOnly, SameSite=Lax | Lax keeps WhatsApp links working |
+| 2026-11-08 | D61 Multiple sessions (Q8) | Allowed; logout ends the current device only | Phone and shop computer |
+| 2026-11-08 | D62 Refusal responses (Q9) | Others' records and wrong-role pages → 404; unauthenticated → login / 401 | Doesn't reveal what exists |
+| 2026-11-08 | D63 Phone input (Q10) | Accept +91, spaces, leading 0; normalise to 10 digits starting 6–9 | How people type numbers |
+| 2026-11-08 | D64 Proxy (Q11) | Optimistic cookie-presence redirect only; real checks server-side | Next.js guidance; no DB hit per request |
+| 2026-11-08 | D65 Login page timing (Q12) | Functional now; design, picker and Hindi in Phase 4 | Keeps Phase 3 on security |
+| 2026-11-08 | D66 Historical order source (Q13) | `OrderSource.HISTORICAL_SEED` via additive migration | Resolves D53 "clearly identifiable" |
+| 2026-11-08 | D67 Action wrapper (Q14) | Every server action uses one wrapper with strict zod input | Guards provably on every action |
+| 2026-11-08 | D68 Post-login redirect (Q15) | `next=` only for safe relative paths in the user's own area | No open redirects |
+| 2026-11-08 | D69 Security requirements | Twelve non-negotiable rules (below) | Standing rules for every phase |
+
+### D54. OTP mechanism (Q1; implements B.15)
+**Choice:** An `OtpProvider` interface. The demo implementation accepts only `123456`. No OTP challenge table; failed attempts are counted in `RateLimitHit` (D56).
+**Why:** Mocks the external SMS system cleanly; adding real SMS later means writing one provider.
+
+### D55. Demo OTP switch (Q2)
+**Choice:** Demo OTP login works only when `AUTH_DEMO_OTP=true` is explicitly configured; it is disabled by default. When enabled, the login screen shows the demo code. When disabled, login refuses with "SMS login not configured".
+**Why:** Production can never accidentally accept the demo code.
+
+### D56. OTP brute-force limits (Q3)
+**Choice:** Per 15 minutes: at most 5 failed code checks per phone and 20 per IP; at most 5 code requests per phone. While locked, even a correct code is rejected. Counters use atomic database operations and are safe under concurrent requests.
+**Why:** Meaningless with a fixed demo code, but the structure is in place for real SMS.
+
+### D57. Session expiry (Q4; confirms D13)
+**Choice:** Sessions expire exactly 7 days after login. No sliding renewal.
+**Why:** Matches D13 and is the simplest behaviour to reason about.
+
+### D58. No session caching (Q5; confirms D13)
+**Choice:** The database-backed session is re-read on every page render and every action. No `use cache` or `use cache: private` on session reads; session-dependent UI streams behind `<Suspense>`.
+**Why:** Logout, revocation and role changes take effect on the next request. The Next.js 16 guide's `use cache: private` pattern would allow up to 5 minutes of staleness.
+
+### D59. Session token (Q6; refines D13)
+**Choice:** Tokens are 32 cryptographically random bytes. Only the SHA-256 hash is stored. Raw tokens are never stored or logged. `SESSION_SECRET` is removed from the environment.
+**Why:** A 256-bit random token can't be guessed or reversed from its hash; a secret would add nothing.
+
+### D60. Session cookie (Q7; refines D13)
+**Choice:** `__Host-parchi_session` in production (Secure, Path=/, no Domain attribute); `parchi_session` locally. Both HttpOnly, SameSite=Lax, Max-Age 7 days.
+**Why:** `__Host-` binds the cookie to the exact host over HTTPS. SameSite=Strict would make the app look logged out when opened from a WhatsApp link.
+
+### D61. Multiple sessions (Q8)
+**Choice:** A user may have several active sessions (e.g. phone and shop computer). Logout revokes only the current device's session.
+**Why:** Matches how shops work.
+
+### D62. Refusal responses (Q9)
+**Choice:** Another retailer's record → 404 (not found). A retailer opening a desk page → 404. Unauthenticated → redirect to `/login` for pages, 401 for APIs.
+**Why:** Doesn't reveal which records exist. Next.js `forbidden()` is still experimental.
+
+### D63. Phone input (Q10)
+**Choice:** Accept Indian numbers typed with `+91`, spaces or a leading `0`; normalise to 10 digits starting with 6–9; reject anything else.
+**Why:** Matches how people type numbers, with one canonical stored form.
+
+### D64. Proxy (Q11)
+**Choice:** `proxy.ts` only checks whether a session cookie is present and redirects to `/login` if not. It does no database lookup. All authentication and authorization happens server-side in the data-access layer and actions.
+**Why:** Next.js recommends proxy checks only as optimistic redirects.
+
+### D65. Login page timing (Q12; sequencing for D15)
+**Choice:** Phase 3 ships a minimal functional login page. The full design, language picker and Hindi strings follow in Phase 4 (commit #14).
+**Why:** Keeps Phase 3 focused on security. D15 still holds for the final product.
+
+### D66. Historical order source (Q13; resolves D53)
+**Choice:** Add `OrderSource.HISTORICAL_SEED` with an additive migration. Seeded historical orders use it.
+**Why:** Makes seeded history queryable and labelled in the UI, and impossible to confuse with app orders.
+
+### D67. Server action wrapper (Q14)
+**Choice:** Every server action is built with one common wrapper, `action({ role, input, handler })`. It resolves the session, enforces the role and validates input with a strict zod schema that rejects unknown keys. A test fails if any exported action isn't built with the wrapper.
+**Why:** Guards on every action are enforced structurally, not by convention.
+
+### D68. Post-login redirect (Q15)
+**Choice:** `next=` is honoured only for safe relative paths in the authenticated user's own area. Otherwise retailers go to `/catalogue` and desk users to `/desk`. `//host`, absolute URLs and other-role paths are ignored.
+**Why:** Prevents open redirects and cross-role confusion.
+
+### D69. Security requirements (standing rules)
+1. Never trust client-supplied `userId`, `role` or `retailerId`.
+2. Resolve the user, role and retailer from the database-backed session.
+3. Retailer data-access queries are always scoped to the authenticated `retailerId`.
+4. Retailer actions reject unknown keys, especially `retailerId` and `role`.
+5. Desk actions require an explicit `retailerId` whenever an operation concerns a particular retailer.
+6. Session tokens use cryptographically secure randomness; raw tokens are never stored or logged.
+7. Logout is POST-only and revokes only the current session.
+8. Role changes and demotions take effect on the next request.
+9. Rate limiting uses atomic database operations and is safe under concurrent requests.
+10. No retailer-specific prices, credit or orders enter shared server caches.
+11. Route handlers that change state validate the request Origin (CSRF).
+12. Production cannot accidentally accept the demo OTP.
+
+### Open items (Phase 3)
+- **R1 (D60):** "Production" for the cookie name should mean "served over HTTPS", not `NODE_ENV=production`. Otherwise a local production build on `http://localhost` (used for the Phase 7 Lighthouse check) would set a `__Host-` cookie that Safari rejects over HTTP.
+- **R2 (D55, D69.12):** The live Vercel demo is itself a production deployment and needs `AUTH_DEMO_OTP=true` deliberately set so reviewers can log in. deployment.md must say so explicitly.
+- **R3 (D15, D65):** Before login the user is unknown, so the language picked on the login screen must be held in a device cookie, then saved to `User.locale` at login. After that, the user's saved locale wins.
 
 ---
 
