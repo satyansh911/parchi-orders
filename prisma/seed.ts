@@ -1,12 +1,13 @@
 // Demo seed. Run with `pnpm db:seed`.
 // It RESETS the database first (TRUNCATE all tables), so the demo always starts
 // from the same known state. Only ever point it at a demo database.
-// Past orders are seeded after Phase 2, priced by the domain engine (D36).
+// Past orders are priced by the same domain engine the app uses (D36).
 
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { seedCatalogue } from "./seed-data/seed-catalogue";
+import { seedPastOrders } from "./seed-data/seed-past-orders";
 import { seedPeople } from "./seed-data/seed-people";
 
 async function main() {
@@ -28,6 +29,9 @@ async function main() {
     console.log(
       `Seeded people: ${people.tiers} price tiers, ${people.retailers} retailers, ${people.users} users`,
     );
+
+    const history = await seedPastOrders(db);
+    console.log(`Seeded past orders: ${history.orders} exported orders, ${history.lines} lines`);
   } finally {
     await db.$disconnect();
   }
