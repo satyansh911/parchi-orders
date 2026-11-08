@@ -53,10 +53,10 @@ enum OrderSource {
   AI_CAPTURE
 }
 
-/// Why the line's scheme was chosen (D2, D18, D34).
+/// Why the line's scheme was chosen (D2, D18, D34, D42).
 enum OfferSelection {
   BEST_OFFER
-  DISCOUNT_FREE_GOODS_SHORT
+  WITHOUT_FREE_GOODS_STOCK_SHORT
 }
 
 enum CaptureStatus {
