@@ -11,5 +11,8 @@ export const CART_STRING_KEYS = [
   "cart.offerChanged", "cart.useBestOffer", "cart.taxable", "cart.discount", "cart.gstAt", "cart.payable", "cart.priceNote",
   "cart.credit.title", "cart.credit.limit", "cart.credit.outstanding", "cart.credit.openOrders", "cart.credit.available", "cart.credit.overBy",
   "cart.tooLarge", "cart.fixLines", "catalogue.perCase", "catalogue.gstExtra",
+  "cart.place", "cart.placing", "cart.confirmHold.title", "cart.confirmHold.body", "cart.confirmHold.yes", "cart.confirmHold.no",
+  "cart.unconfirmed", "cart.problem.QUOTE_CHANGED", "cart.problem.STOCK_CHANGED", "cart.problem.CREDIT_CONFIRMATION_REQUIRED", "cart.problem.REJECTED",
+  "cart.placed.title", "cart.placed.already", "cart.placed.number", "cart.placed.PENDING_REVIEW", "cart.placed.CREDIT_HOLD", "cart.placed.view", "cart.placed.continue",
 ] as const;
 export type CartStrings = Record<(typeof CART_STRING_KEYS)[number], string>;

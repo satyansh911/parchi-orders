@@ -146,8 +146,20 @@ const offerView = (o: Offer | null): OfferView | null =>
   o && { id: o.id, type: o.type, labelEn: o.labelEn, labelHi: o.labelHi, discountBps: o.discountBps, freeCases: o.freeCases };
 
 function lineView(line: PricedLine): LineView {
-  const { skuId: _skuId, applied, otherOffer, ...rest } = line;
-  return { ...rest, applied: offerView(applied), otherOffer: offerView(otherOffer) };
+  return {
+    paidCases: line.paidCases,
+    freeCases: line.freeCases,
+    casePricePaise: line.casePricePaise,
+    taxablePaise: line.taxablePaise,
+    discountBps: line.discountBps,
+    discountPaise: line.discountPaise,
+    gstBps: line.gstBps,
+    gstPaise: line.gstPaise,
+    lineTotalPaise: line.lineTotalPaise,
+    freeValuePaise: line.freeValuePaise,
+    applied: offerView(line.applied),
+    otherOffer: offerView(line.otherOffer),
+  };
 }
 
 function optionView(option: StockOption): OptionView {

@@ -104,6 +104,25 @@ export const en = {
   "cart.credit.overBy": "This order is {amount} over your available credit. It will wait for the office to approve.",
   "cart.tooLarge": "The order is above ₹1 crore. Please reduce quantities.",
   "cart.fixLines": "Please fix the highlighted items first.",
+
+  "cart.place": "Place order",
+  "cart.placing": "Placing your order…",
+  "cart.confirmHold.title": "Over your credit limit",
+  "cart.confirmHold.body": "This order is {amount} over your available credit. It will wait for the office to approve. Place it anyway?",
+  "cart.confirmHold.yes": "Place anyway",
+  "cart.confirmHold.no": "Go back",
+  "cart.unconfirmed": "We couldn't confirm your order yet. Check your connection and try again. The cart stays locked until then, so nothing is ordered twice.",
+  "cart.problem.QUOTE_CHANGED": "Prices, offers, stock or credit changed. Please check the updated cart.",
+  "cart.problem.STOCK_CHANGED": "Some of this stock was just taken. Please check the updated cart.",
+  "cart.problem.CREDIT_CONFIRMATION_REQUIRED": "This order is over your credit and needs your confirmation.",
+  "cart.problem.REJECTED": "That request couldn't be used. Please place the order again.",
+  "cart.placed.title": "Order placed",
+  "cart.placed.already": "This order was already placed.",
+  "cart.placed.number": "Order #{number}",
+  "cart.placed.PENDING_REVIEW": "Waiting for office approval.",
+  "cart.placed.CREDIT_HOLD": "On credit hold. The office will review it.",
+  "cart.placed.view": "View order",
+  "cart.placed.continue": "Continue ordering",
 } as const;
 
 export type MessageKey = keyof typeof en;
