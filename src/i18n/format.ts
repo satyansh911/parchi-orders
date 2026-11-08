@@ -25,3 +25,19 @@ export function formatBps(bps: number): string {
   const rest = bps % 100;
   return rest === 0 ? `${whole}%` : `${whole}.${String(rest).padStart(2, "0").replace(/0$/, "")}%`;
 }
+
+/**
+ * Date and time in IST (assumption C.18: stored in UTC, shown in IST), with
+ * Latin digits in both languages (D83). Hindi uses Hindi month names.
+ */
+export function formatDateTime(date: Date, locale: "hi" | "en"): string {
+  return new Intl.DateTimeFormat(`${locale}-IN`, {
+    timeZone: "Asia/Kolkata",
+    numberingSystem: "latn",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { en } from "./en";
-import { formatBps, formatPaise, formatPaiseCompact } from "./format";
+import { formatBps, formatDateTime, formatPaise, formatPaiseCompact } from "./format";
 import { hi } from "./hi";
 import { fromUserLocale, parseLocale, resolveLocale, toUserLocale } from "./locale";
 import { translator } from "./messages";
@@ -84,5 +84,22 @@ describe("money formatting (D83)", () => {
     expect(formatBps(250)).toBe("2.5%");
     expect(formatBps(1800)).toBe("18%");
     expect(formatBps(1234)).toBe("12.34%");
+  });
+});
+
+describe("formatDateTime (C.18, D83)", () => {
+  it("shows UTC instants in IST", () => {
+    const d = new Date("2026-11-09T06:00:00Z"); // 11:30 IST
+    expect(formatDateTime(d, "en")).toMatch(/9 Nov 2026.*11:30/);
+  });
+
+  it("crosses midnight correctly (18:30 UTC is the next day in IST)", () => {
+    expect(formatDateTime(new Date("2026-10-31T18:30:00Z"), "en")).toMatch(/1 Nov 2026/);
+  });
+
+  it("uses Latin digits in Hindi too", () => {
+    const text = formatDateTime(new Date("2026-11-09T06:00:00Z"), "hi");
+    expect(text).toMatch(/9/);
+    expect(text).not.toMatch(/[\u0966-\u096F]/); // no Devanagari digits
   });
 });

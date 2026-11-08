@@ -212,7 +212,8 @@ function PlacedPanel({ placed, s }: { placed: Extract<PlaceOrderResult, { outcom
       <h2 className="text-xl font-semibold">{placed.alreadyPlaced ? s["cart.placed.already"] : s["cart.placed.title"]}</h2>
       <p className="text-lg font-bold">{fill(s["cart.placed.number"], { number: placed.number })}</p>
       <p className={placed.status === "CREDIT_HOLD" ? "font-medium text-warn" : "text-ink-muted"}>{s[`cart.placed.${placed.status}`]}</p>
-      <Link href="/catalogue" className="mt-2 flex min-h-12 items-center rounded-card border border-accent px-6 font-semibold text-accent">{s["cart.placed.continue"]}</Link>
+      <Link href={`/orders/${placed.orderId}`} className="mt-2 flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-paper">{s["cart.placed.view"]}</Link>
+      <Link href="/catalogue" className="flex min-h-12 items-center rounded-card border border-accent px-6 font-semibold text-accent">{s["cart.placed.continue"]}</Link>
     </section>
   );
 }

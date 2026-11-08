@@ -27,6 +27,7 @@ export async function listOrders(
     select: {
       id: true, number: true, status: true, source: true, totalPaise: true, placedAt: true, retailerId: true,
       awaitingRetailerAck: true,
+      _count: { select: { lines: true } },
     },
   });
 }
