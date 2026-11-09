@@ -7,6 +7,7 @@ import { AccessError } from "@/server/auth/access-error";
 import { requirePageViewer } from "@/server/auth/viewer";
 import { getOrder } from "@/server/data/orders";
 import { db } from "@/server/db";
+import { AcceptChanges } from "../accept-changes";
 import { OrderActions } from "../order-actions";
 import { OrderAgainButton } from "../order-again";
 import { StatusBadge } from "../status-badge";
@@ -86,6 +87,9 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
       <p className="text-xs text-ink-muted">{t("order.frozenNote")}</p>
 
       <OrderAgainButton userId={viewer.userId} orderId={order.id} s={pickStrings(t, ORDER_AGAIN_STRING_KEYS)} />
+      {order.awaitingRetailerAck && (
+        <AcceptChanges orderId={order.id} body={t("order.ack.body", { total: formatPaise(order.totalPaise), was: formatPaise(order.originalTotalPaise) })} label={t("order.ack.accept")} error={t("common.error")} />
+      )}
       <OrderActions orderId={order.id} status={order.status} cancelRequested={order.cancelRequestedAt !== null} s={pickStrings(t, ORDER_ACTION_STRING_KEYS)} />
     </div>
   );

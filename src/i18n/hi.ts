@@ -165,6 +165,8 @@ export const hi: Record<MessageKey, string> = {
   "order.send": "भेजें",
   "order.noteSent": "आपका संदेश ऑफ़िस को भेज दिया गया।",
   "order.notAllowed": "अब यह ऑर्डर पर नहीं हो सकता। कृपया पेज रीफ़्रेश करें।",
+  "order.ack.body": "ऑफ़िस ने यह ऑर्डर बदला है। नया कुल: {total} (पहले {was})। मंज़ूरी के लिए स्वीकार करें, या रद्द करने को कहें।",
+  "order.ack.accept": "बदलाव स्वीकार करें",
   "nav.capture": "पर्ची",
   "capture.title": "अपना ऑर्डर लिखें",
   "capture.hint": "जैसे WhatsApp पर लिखते हैं, वैसे ही ऑर्डर लिखें या पेस्ट करें।",

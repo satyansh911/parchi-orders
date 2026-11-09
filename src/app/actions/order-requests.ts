@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { action } from "@/server/auth/action";
 import { db } from "@/server/db";
-import { addNoteForDesk, cancelOwnOrder, requestCancellation } from "@/server/orders/retailer-order-actions";
+import { acceptChanges, addNoteForDesk, cancelOwnOrder, requestCancellation } from "@/server/orders/retailer-order-actions";
 
 const orderId = z.string().min(1).max(40);
 const note = z.string().trim().min(1).max(300);
@@ -27,4 +27,11 @@ export const addNoteAction = action({
   role: "RETAILER",
   input: z.object({ orderId, note }),
   handler: async (input, { viewer }) => addNoteForDesk(db, viewer, input.orderId, input.note, new Date()),
+});
+
+/** Accept desk changes that raised the total (D32). */
+export const acceptChangesAction = action({
+  role: "RETAILER",
+  input: z.object({ orderId }),
+  handler: async (input, { viewer }) => acceptChanges(db, viewer, input.orderId, new Date()),
 });

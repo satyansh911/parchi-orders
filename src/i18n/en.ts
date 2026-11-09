@@ -163,6 +163,8 @@ export const en = {
   "order.send": "Send",
   "order.noteSent": "Your note was sent to the office.",
   "order.notAllowed": "This can't be done for the order any more. Please refresh.",
+  "order.ack.body": "The office changed this order. New total: {total} (was {was}). Accept to let them approve it, or ask to cancel.",
+  "order.ack.accept": "Accept changes",
   "nav.capture": "Order slip",
   "capture.title": "Write your order",
   "capture.hint": "Type or paste your order the way you write it on WhatsApp.",
