@@ -28,7 +28,7 @@ async function Queue({ searchParams }: { searchParams: Promise<Record<string, st
       <nav aria-label="Order filters" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {(Object.keys(QUEUE_FILTERS) as QueueFilter[]).map((k) => (
           <Link key={k} href={`/desk?filter=${k}`} aria-current={k === filter ? "page" : undefined}
-            className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm ${k === filter ? "border-accent bg-accent text-paper" : "border-line"}`}>
+            className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm ${k === filter ? "border-accent bg-accent text-white" : "border-line"}`}>
             {QUEUE_FILTERS[k].label}<span className="tabular-nums opacity-80">{counts[k]}</span>
           </Link>
         ))}

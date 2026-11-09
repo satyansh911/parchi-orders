@@ -10,6 +10,7 @@ import { PackSprite } from "@/ui/pack-image";
 import { CartBadge } from "./cart/cart-controls";
 import { CartIcon, GridIcon, ListIcon, SlipIcon } from "@/ui/icons";
 import { LocaleToggle } from "@/ui/locale-toggle";
+import { ThemeToggle } from "@/ui/theme-toggle";
 import { LogoutButton } from "@/ui/logout-button";
 
 // Retailer app shell: slim header + bottom navigation (D81). Everything that
@@ -46,6 +47,7 @@ async function HeaderContent() {
           <p className="truncate text-xs text-ink-muted">{t("credit.available", { amount: formatPaise(credit.availablePaise) })}</p>
         )}
       </div>
+      <ThemeToggle labels={{ change: t("theme.change"), auto: t("theme.auto"), light: t("theme.light"), dark: t("theme.dark") }} />
       <LocaleToggle current={locale} label={t("locale.switchTo")} ariaLabel={t("locale.switchLabel")} />
       <LogoutButton label={t("shell.logout")} pendingLabel={t("shell.loggingOut")} />
     </>

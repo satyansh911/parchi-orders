@@ -40,7 +40,7 @@ async function ReviewContent({ params }: { params: Promise<{ id: string }> }) {
         <h1 className="text-xl font-semibold">{s["capture.failed.title"]}</h1>
         <p className="text-ink-muted">{s["capture.failed.body"]}</p>
         <blockquote className="rounded-card bg-paper-dim p-3 text-sm whitespace-pre-wrap">{capture.rawText}</blockquote>
-        <Link href="/capture" className="flex min-h-14 items-center justify-center rounded-card bg-accent text-lg font-semibold text-paper">{s["capture.retry"]}</Link>
+        <Link href="/capture" className="flex min-h-14 items-center justify-center rounded-card bg-accent text-lg font-semibold text-white">{s["capture.retry"]}</Link>
         <Link href="/catalogue" className="flex min-h-12 items-center justify-center rounded-card border border-accent font-medium text-accent">{s["capture.manual"]}</Link>
       </div>
     );

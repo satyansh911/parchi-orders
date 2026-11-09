@@ -8,7 +8,7 @@ export default function RetailerError({ reset }: { error: Error & { digest?: str
       <p className="text-base font-medium">
         <span lang="hi">कुछ गड़बड़ हो गई।</span> <span lang="en">Something went wrong.</span>
       </p>
-      <button type="button" onClick={reset} className="min-h-12 rounded-card bg-accent px-6 font-semibold text-paper">
+      <button type="button" onClick={reset} className="min-h-12 rounded-card bg-accent px-6 font-semibold text-white">
         <span lang="hi">फिर से कोशिश करें</span> · <span lang="en">Try again</span>
       </button>
     </main>

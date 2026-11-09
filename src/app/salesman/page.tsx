@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { getTranslator, pickStrings } from "@/i18n/server";
 import { requirePageViewer } from "@/server/auth/viewer";
 import { LocaleToggle } from "@/ui/locale-toggle";
+import { ThemeToggle } from "@/ui/theme-toggle";
 import { LogoutButton } from "@/ui/logout-button";
 import { PackSprite } from "@/ui/pack-image";
 import { SalesmanApp } from "./salesman-app";
@@ -33,7 +34,8 @@ async function Content() {
           <p className="truncate font-semibold leading-tight">{viewer.name}</p>
           <p className="text-xs text-ink-muted">{t("sm.title")}</p>
         </div>
-        <LocaleToggle current={locale} label={t("locale.switchTo")} ariaLabel={t("locale.switchLabel")} />
+        <ThemeToggle labels={{ change: t("theme.change"), auto: t("theme.auto"), light: t("theme.light"), dark: t("theme.dark") }} />
+      <LocaleToggle current={locale} label={t("locale.switchTo")} ariaLabel={t("locale.switchLabel")} />
         <LogoutButton label={t("shell.logout")} pendingLabel={t("shell.loggingOut")} />
       </header>
       <SalesmanApp userId={viewer.userId} locale={locale} s={pickStrings(t, SALESMAN_KEYS)} />

@@ -34,7 +34,7 @@ async function Loading({ searchParams }: { searchParams: Promise<Record<string, 
             <span className="text-ink-muted">Date</span>
             <input type="date" name="date" defaultValue={day} className="min-h-11 rounded-card border border-line px-3" />
           </label>
-          <button type="submit" className="min-h-11 rounded-card bg-accent px-4 text-sm font-semibold text-paper">Show</button>
+          <button type="submit" className="min-h-11 rounded-card bg-accent px-4 text-sm font-semibold text-white">Show</button>
           <PrintButton />
         </form>
       </div>

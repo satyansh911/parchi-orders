@@ -39,6 +39,71 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/*
+ * Dark theme (D114): the same roles with dark values. "Auto" follows the
+ * phone's setting; the header toggle can force Light or Dark (stored on the
+ * device, applied before first paint by the script in app/layout.tsx).
+ */
+:root {
+  --pack-tile: #f3f1eb;
+  --skeleton: #e7e5df;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --color-bg: #0f1513;
+  --color-ink: #e8eeec;
+  --color-ink-muted: #b6c2be;
+  --color-ink-faint: #97a39f;
+  --color-paper: #18211f;
+  --color-paper-dim: #222c2a;
+  --color-line: #2d3936;
+  --color-line-strong: #3f4c49;
+  --color-night: #0a0f0e;
+  --color-accent: #13897f;
+  --color-accent-strong: #6fd3c7;
+  --color-accent-soft: #123430;
+  --color-ok: #23894a;
+  --color-ok-strong: #7ad79b;
+  --color-ok-soft: #133022;
+  --color-warn: #f1aa63;
+  --color-warn-bar: #d97706;
+  --color-warn-soft: #3a2a14;
+  --color-danger: #f28b7f;
+  --color-danger-soft: #3d1a16;
+  --shadow-raised: 0 -1px 0 rgb(0 0 0 / 0.3), 0 8px 24px -6px rgb(0 0 0 / 0.6);
+  --pack-tile: #26302d;
+  --skeleton: #2a3431;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1513;
+    --color-ink: #e8eeec;
+    --color-ink-muted: #b6c2be;
+    --color-ink-faint: #97a39f;
+    --color-paper: #18211f;
+    --color-paper-dim: #222c2a;
+    --color-line: #2d3936;
+    --color-line-strong: #3f4c49;
+    --color-night: #0a0f0e;
+    --color-accent: #13897f;
+    --color-accent-strong: #6fd3c7;
+    --color-accent-soft: #123430;
+    --color-ok: #23894a;
+    --color-ok-strong: #7ad79b;
+    --color-ok-soft: #133022;
+    --color-warn: #f1aa63;
+    --color-warn-bar: #d97706;
+    --color-warn-soft: #3a2a14;
+    --color-danger: #f28b7f;
+    --color-danger-soft: #3d1a16;
+    --shadow-raised: 0 -1px 0 rgb(0 0 0 / 0.3), 0 8px 24px -6px rgb(0 0 0 / 0.6);
+    --pack-tile: #26302d;
+    --skeleton: #2a3431;
+    color-scheme: dark;
+  }
+}
+
 html {
   background: var(--color-bg);
   color: var(--color-ink);
@@ -62,7 +127,7 @@ html {
   display: block;
   flex: none;
   border-radius: 10px;
-  background: #f3f1eb;
+  background: var(--pack-tile);
 }
 .pack-art .pack-bt {
   font: 700 6.5px/1 system-ui, sans-serif;
@@ -138,7 +203,7 @@ s.was::after {
 .press { transition: transform 120ms var(--ease-out), background-color 120ms var(--ease-out); }
 .press:active { transform: scale(0.97); }
 .press-round:active { transform: scale(0.88); }
-.skeleton { background: #e7e5df; animation: breathe 1.6s ease-in-out infinite; }
+.skeleton { background: var(--skeleton); animation: breathe 1.6s ease-in-out infinite; }
 .reading-dots > i {
   display: inline-block;
   width: 8px;
@@ -211,5 +276,5 @@ s.was::after {
 
 @media print {
   .no-print { display: none !important; }
-  html { background: #fff; }
+  html { background: #fff; color-scheme: light; }
 }

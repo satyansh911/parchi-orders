@@ -136,7 +136,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         {problemFor?.problem === "REJECTED" && <p role="alert" className="text-sm text-danger">{s["cart.problem.REJECTED"]}</p>}
         <p className="text-ink-muted">{s["cart.empty"]}</p>
-        <Link href="/catalogue" className="flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-paper">{s["cart.browse"]}</Link>
+        <Link href="/catalogue" className="flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-white">{s["cart.browse"]}</Link>
       </div>
     );
   }
@@ -186,12 +186,12 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
       {fresh?.problem === "ORDER_TOO_LARGE" && <p role="alert" className="text-sm font-medium text-danger">{s["cart.tooLarge"]}</p>}
 
       {confirming && fresh?.credit.hold ? (
-        <section role="alertdialog" aria-labelledby="hold-title" aria-describedby="hold-body" className="anim-sheet flex flex-col gap-3 rounded-[16px] border border-[#efcf9b] bg-warn-soft p-4 shadow-[var(--shadow-raised)]">
+        <section role="alertdialog" aria-labelledby="hold-title" aria-describedby="hold-body" className="anim-sheet flex flex-col gap-3 rounded-[16px] border border-warn-bar/40 bg-warn-soft p-4 shadow-[var(--shadow-raised)]">
           <h2 id="hold-title" className="font-semibold">{s["cart.confirmHold.title"]}</h2>
           <p id="hold-body" className="text-sm">{fill(s["cart.confirmHold.body"], { amount: formatPaise(fresh.credit.overByPaise) })}</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirming(false)} className="min-h-12 flex-1 rounded-card border border-line bg-paper font-medium">{s["cart.confirmHold.no"]}</button>
-            <button type="button" onClick={() => start(true)} className="min-h-12 flex-1 rounded-card bg-warn font-semibold text-paper">{s["cart.confirmHold.yes"]}</button>
+            <button type="button" onClick={() => start(true)} className="min-h-12 flex-1 rounded-card bg-warn font-semibold text-white">{s["cart.confirmHold.yes"]}</button>
           </div>
         </section>
       ) : (
@@ -200,7 +200,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
             type="button"
             disabled={!canPlace}
             onClick={() => (fresh?.credit.hold ? setConfirming(true) : start(false))}
-            className="press flex min-h-14 w-full items-center justify-between rounded-[14px] bg-accent px-5 text-lg font-semibold text-paper active:bg-accent-strong disabled:bg-paper-dim disabled:text-ink-faint"
+            className="press flex min-h-14 w-full items-center justify-between rounded-[14px] bg-accent px-5 text-lg font-semibold text-white active:bg-accent-strong disabled:bg-paper-dim disabled:text-ink-faint"
           >
             <span>{submitting || locked ? s["cart.placing"] : s["cart.place"]}</span>
             {fresh && <span className="tabular-nums">{formatPaise(fresh.totals.totalPaise)}</span>}
@@ -220,7 +220,7 @@ function PlacedPanel({ placed, s }: { placed: Extract<PlaceOrderResult, { outcom
       <h2 className="text-xl font-semibold">{placed.alreadyPlaced ? s["cart.placed.already"] : s["cart.placed.title"]}</h2>
       <p className="text-lg font-bold">{fill(s["cart.placed.number"], { number: placed.number })}</p>
       <p className={placed.status === "CREDIT_HOLD" ? "font-medium text-warn" : "text-ink-muted"}>{s[`cart.placed.${placed.status}`]}</p>
-      <Link href={`/orders/${placed.orderId}`} className="mt-2 flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-paper">{s["cart.placed.view"]}</Link>
+      <Link href={`/orders/${placed.orderId}`} className="mt-2 flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-white">{s["cart.placed.view"]}</Link>
       <Link href="/catalogue" className="flex min-h-12 items-center rounded-card border border-accent px-6 font-semibold text-accent">{s["cart.placed.continue"]}</Link>
     </section>
   );
@@ -329,7 +329,7 @@ function LinePrice({ line, s }: { line: LineView; s: CartStrings }) {
       )}
       {line.freeCases > 0 && (
         <span className="flex flex-wrap items-center gap-1.5">
-          <span key={line.freeCases} className="confetti anim-pop rounded-full bg-ok px-2.5 py-0.5 text-xs font-bold tracking-wide text-paper">
+          <span key={line.freeCases} className="confetti anim-pop rounded-full bg-ok px-2.5 py-0.5 text-xs font-bold tracking-wide text-white">
             {s["cart.freeChip"]}<i /><i /><i /><i />
           </span>
           <span className="num text-xs font-semibold text-ok-strong">{fill(s["cart.freeCases"], { n: line.freeCases })} · {fill(s["cart.worth"], { value: formatPaise(line.freeValuePaise) })}</span>

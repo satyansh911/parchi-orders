@@ -29,7 +29,7 @@ export function CartBadge({ userId, label }: { userId: string; label: string }) 
   const n = cart.lines.length;
   if (n === 0) return null;
   return (
-    <span key={n} className="anim-bump absolute -top-1 left-[calc(50%+6px)] box-content min-w-5 rounded-full border-2 border-paper bg-accent px-1 text-center text-xs font-bold leading-5 text-paper" aria-label={fill(label, { n })}>
+    <span key={n} className="anim-bump absolute -top-1 left-[calc(50%+6px)] box-content min-w-5 rounded-full border-2 border-paper bg-accent px-1 text-center text-xs font-bold leading-5 text-white" aria-label={fill(label, { n })}>
       {n}
     </span>
   );

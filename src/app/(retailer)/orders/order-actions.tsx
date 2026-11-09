@@ -36,7 +36,7 @@ export function OrderActions({ orderId, status, cancelRequested, s }: { orderId:
         {message && <p role="alert" className="text-sm text-danger">{message}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={() => setConfirming(false)} className="min-h-12 flex-1 rounded-card border border-line bg-paper font-medium">{s["order.cancel.no"]}</button>
-          <button type="button" disabled={pending} onClick={() => run(() => cancelOrderAction({ orderId }), () => setConfirming(false))} className="min-h-12 flex-1 rounded-card bg-danger font-semibold text-paper disabled:opacity-60">{s["order.cancel.yes"]}</button>
+          <button type="button" disabled={pending} onClick={() => run(() => cancelOrderAction({ orderId }), () => setConfirming(false))} className="min-h-12 flex-1 rounded-card bg-danger font-semibold text-white disabled:opacity-60">{s["order.cancel.yes"]}</button>
         </div>
       </div>
     ) : (
@@ -70,7 +70,7 @@ export function OrderActions({ orderId, status, cancelRequested, s }: { orderId:
           <textarea id="desk-note" maxLength={300} rows={3} value={text} onChange={(e) => setText(e.target.value)} required={mode === "note"} className="rounded-card border border-line p-2 text-base" />
           <div className="flex gap-2">
             <button type="button" onClick={() => setMode(null)} className="min-h-12 flex-1 rounded-card border border-line font-medium">{s["order.cancel.no"]}</button>
-            <button type="submit" disabled={pending} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-paper disabled:opacity-60">{s["order.send"]}</button>
+            <button type="submit" disabled={pending} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-white disabled:opacity-60">{s["order.send"]}</button>
           </div>
         </form>
       ) : (

@@ -18,7 +18,7 @@ function failureOf(result: ActionResult<LoginOutcome>): Failure | null {
 }
 
 const inputClass = "min-h-12 rounded-card border border-line px-3 text-lg";
-const primaryButton = "min-h-12 rounded-card bg-accent px-4 text-base font-semibold text-paper disabled:opacity-60";
+const primaryButton = "min-h-12 rounded-card bg-accent px-4 text-base font-semibold text-white disabled:opacity-60";
 
 export function LoginForm({ strings: s }: { strings: Strings }) {
   const next = useSearchParams().get("next") ?? undefined;

@@ -48,7 +48,7 @@ export function DecisionPanel({ orderId, version, status, awaitingRetailerAck }:
       </label>
       <div className="flex flex-wrap gap-2">
         {open && (
-          <button type="button" disabled={pending || awaitingRetailerAck} onClick={() => decide("APPROVE")} className="min-h-12 rounded-card bg-accent px-5 font-semibold text-paper disabled:opacity-50">
+          <button type="button" disabled={pending || awaitingRetailerAck} onClick={() => decide("APPROVE")} className="min-h-12 rounded-card bg-accent px-5 font-semibold text-white disabled:opacity-50">
             {status === "CREDIT_HOLD" ? "Release hold and approve" : "Approve"}
           </button>
         )}

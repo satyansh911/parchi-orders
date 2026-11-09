@@ -37,7 +37,7 @@ export function ExportButton({ orderCount, totalPaise, totalLabel }: { orderCoun
     <div className="flex flex-col gap-2">
       <p className="text-lg"><span className="font-semibold">{orderCount}</span> approved orders · <span className="font-semibold tabular-nums">{totalLabel}</span></p>
       {message && <p role="status" className="text-sm text-warn">{message}</p>}
-      <button type="button" disabled={pending} onClick={run} className="min-h-12 self-start rounded-card bg-accent px-5 font-semibold text-paper disabled:opacity-60">
+      <button type="button" disabled={pending} onClick={run} className="min-h-12 self-start rounded-card bg-accent px-5 font-semibold text-white disabled:opacity-60">
         {pending ? "Exporting…" : `Export ${orderCount} orders to CSV`}
       </button>
     </div>

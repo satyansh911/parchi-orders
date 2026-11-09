@@ -16,6 +16,10 @@ export const hi: Record<MessageKey, string> = {
   "nav.main": "मुख्य",
 
   "locale.switchTo": "English",
+  "theme.change": "थीम बदलें",
+  "theme.auto": "अपने आप (फ़ोन की सेटिंग)",
+  "theme.light": "लाइट",
+  "theme.dark": "डार्क",
   "locale.switchLabel": "भाषा अंग्रेज़ी में बदलें",
 
   "login.title": "लॉग इन",

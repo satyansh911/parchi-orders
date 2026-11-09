@@ -14,6 +14,10 @@ export const en = {
   "nav.main": "Main",
 
   "locale.switchTo": "हिंदी",
+  "theme.change": "Change theme",
+  "theme.auto": "Auto (phone setting)",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
   "locale.switchLabel": "Switch language to Hindi",
 
   "login.title": "Log in",

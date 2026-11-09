@@ -18,7 +18,7 @@ export function ProductRow({ item, locale, s, cases = 0, action }: { item: Catal
   const progress = offer.kind === "FREE" ? null : freeProgress(cases, item.offers);
   const inCart = cases > 0;
   return (
-    <li className={`grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-card border bg-paper p-3 transition-colors ${inCart ? "border-[#b8dcd5]" : "border-line"}`}>
+    <li className={`grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-card border bg-paper p-3 transition-colors ${inCart ? "border-accent/40" : "border-line"}`}>
       <PackImage shape={item.imageKey} brand={item.brand} name={item.nameEn} packSize={item.packSize} />
       <div className="flex min-w-0 flex-col gap-0.5">
         <h3 className="text-base font-semibold leading-snug">{name}</h3>
@@ -46,7 +46,7 @@ export function ProductRow({ item, locale, s, cases = 0, action }: { item: Catal
             <span className="anim-pop self-start rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-semibold text-ok-strong">✓ {fill(s["catalogue.discountOn"], { pct: formatBps(offer.discountBps) })}</span>
           ) : offer.kind === "FREE" ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span key={offer.freeCases} className="confetti anim-pop rounded-full bg-ok px-2.5 py-0.5 text-xs font-bold tracking-wide text-paper">
+              <span key={offer.freeCases} className="confetti anim-pop rounded-full bg-ok px-2.5 py-0.5 text-xs font-bold tracking-wide text-white">
                 {s["catalogue.free"]}<i /><i /><i /><i />
               </span>
               <span className="num text-xs font-semibold text-ok-strong">{fill(s["catalogue.freeEarned"], { paid: cases, free: offer.freeCases, value: formatPaise(offer.freeValuePaise) })}</span>

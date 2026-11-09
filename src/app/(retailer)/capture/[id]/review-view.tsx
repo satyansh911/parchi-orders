@@ -87,7 +87,7 @@ export function ReviewView({ userId, captureId, lines, skus, s }: { userId: stri
     return (
       <div className="flex flex-col gap-3 rounded-card bg-ok-soft p-4" role="status">
         <p className="font-medium text-ok">{s["capture.added"]}</p>
-        <Link href="/cart" className="flex min-h-12 items-center justify-center rounded-card bg-accent font-semibold text-paper">{s["capture.goCart"]}</Link>
+        <Link href="/cart" className="flex min-h-12 items-center justify-center rounded-card bg-accent font-semibold text-white">{s["capture.goCart"]}</Link>
         <Link href="/capture" className="flex min-h-12 items-center justify-center text-accent">{s["capture.newMessage"]}</Link>
       </div>
     );
@@ -130,13 +130,13 @@ export function ReviewView({ userId, captureId, lines, skus, s }: { userId: stri
             <p className="text-sm">{s["order.again.cartNotEmpty"]}</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => finish(choice, "replace")} className="min-h-12 flex-1 rounded-card border border-accent font-medium text-accent">{s["order.again.replace"]}</button>
-              <button type="button" onClick={() => finish(choice, "add")} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-paper">{s["order.again.add"]}</button>
+              <button type="button" onClick={() => finish(choice, "add")} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-white">{s["order.again.add"]}</button>
             </div>
           </div>
         ) : (
           <>
             {left > 0 && <p className="mb-2 text-sm text-warn">{fill(s["capture.fixFirst"], { n: left })}</p>}
-            <button type="button" disabled={pending || left > 0} onClick={confirm} className="min-h-14 w-full rounded-card bg-accent text-lg font-semibold text-paper disabled:bg-paper-dim disabled:text-ink-faint">
+            <button type="button" disabled={pending || left > 0} onClick={confirm} className="min-h-14 w-full rounded-card bg-accent text-lg font-semibold text-white disabled:bg-paper-dim disabled:text-ink-faint">
               {pending ? s["capture.adding"] : fill(s["capture.addToCart"], { n: kept })}
             </button>
           </>
@@ -194,7 +194,7 @@ function LineEditor({ d, line, skus, byId, s, onChange }: { d: Draft; line?: Rev
         <div className="flex gap-2">
           <button type="button" onClick={() => onChange({ removed: true })} className="min-h-11 px-2 text-sm text-danger">{s["capture.remove"]}</button>
           {!d.checked && (
-            <button type="button" disabled={!d.skuId || d.cases < 1} onClick={() => onChange({ checked: true })} className="min-h-11 rounded-card bg-accent px-3 text-sm font-semibold text-paper disabled:opacity-50">
+            <button type="button" disabled={!d.skuId || d.cases < 1} onClick={() => onChange({ checked: true })} className="min-h-11 rounded-card bg-accent px-3 text-sm font-semibold text-white disabled:opacity-50">
               {s["capture.ok"]}
             </button>
           )}

@@ -28,7 +28,7 @@ async function OrdersContent() {
       {orders.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <p className="text-ink-muted">{t("orders.empty")}</p>
-          <Link href="/catalogue" className="flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-paper">{t("cart.browse")}</Link>
+          <Link href="/catalogue" className="flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-white">{t("cart.browse")}</Link>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">

@@ -46,11 +46,11 @@ export function OrderAgainButton({ userId, orderId, s }: { userId: string; order
           <p className="text-sm">{s["order.again.cartNotEmpty"]}</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => apply(choice, "replace", 0)} className="min-h-12 flex-1 rounded-card border border-accent font-medium text-accent">{s["order.again.replace"]}</button>
-            <button type="button" onClick={() => apply(choice, "add", 0)} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-paper">{s["order.again.add"]}</button>
+            <button type="button" onClick={() => apply(choice, "add", 0)} className="min-h-12 flex-1 rounded-card bg-accent font-semibold text-white">{s["order.again.add"]}</button>
           </div>
         </div>
       ) : (
-        <button type="button" disabled={pending} onClick={fetchLines} className="min-h-14 rounded-card bg-accent px-5 text-lg font-semibold text-paper disabled:opacity-60">
+        <button type="button" disabled={pending} onClick={fetchLines} className="min-h-14 rounded-card bg-accent px-5 text-lg font-semibold text-white disabled:opacity-60">
           {s["order.again"]}
         </button>
       )}

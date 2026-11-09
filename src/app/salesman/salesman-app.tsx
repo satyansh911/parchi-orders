@@ -173,7 +173,7 @@ export function SalesmanApp({ userId, locale, s }: { userId: string; locale: "hi
       {!pack ? (
         <div className="flex flex-col gap-3 rounded-card border border-line p-4">
           <p>{s["sm.noPack"]}</p>
-          <button type="button" disabled={!online || downloading} onClick={() => void download()} className="min-h-14 rounded-card bg-accent text-lg font-semibold text-paper disabled:opacity-50">
+          <button type="button" disabled={!online || downloading} onClick={() => void download()} className="min-h-14 rounded-card bg-accent text-lg font-semibold text-white disabled:opacity-50">
             {downloading ? s["sm.refreshing"] : s["sm.download"]}
           </button>
         </div>
@@ -301,7 +301,7 @@ function ShopView({ shop, state, s, onBack, onCases, onSave }: {
             )}
           </>
         )}
-        <button type="button" disabled={!canSave} className="min-h-14 rounded-card bg-accent text-lg font-semibold text-paper disabled:bg-paper-dim disabled:text-ink-faint"
+        <button type="button" disabled={!canSave} className="min-h-14 rounded-card bg-accent text-lg font-semibold text-white disabled:bg-paper-dim disabled:text-ink-faint"
           onClick={() => priced.expectation && onSave({
             id: crypto.randomUUID(), retailerId: shop.id, shopName: shop.shopName, lines, expected: priced.expectation,
             confirmCreditHold: priced.credit.hold, takenAt: new Date().toISOString(),
@@ -339,7 +339,7 @@ function Outbox({ state, s, online, time, onSend, onAccept, onEdit, onDiscard }:
             </p>
             {(e.status === "CHANGED" || e.status === "NEEDS_EDIT" || e.status === "REJECTED") && (
               <div className="flex flex-wrap gap-2">
-                {e.status === "CHANGED" && <button type="button" onClick={() => onAccept(e.id)} className="min-h-11 rounded-card bg-accent px-3 text-sm font-semibold text-paper">{s["sm.resend"]}</button>}
+                {e.status === "CHANGED" && <button type="button" onClick={() => onAccept(e.id)} className="min-h-11 rounded-card bg-accent px-3 text-sm font-semibold text-white">{s["sm.resend"]}</button>}
                 {e.status !== "REJECTED" && <button type="button" onClick={() => onEdit(e.id, e.retailerId)} className="min-h-11 rounded-card border border-accent px-3 text-sm text-accent">{s["sm.edit"]}</button>}
                 <button type="button" onClick={() => onDiscard(e.id)} className="min-h-11 px-3 text-sm text-danger">{s["sm.discard"]}</button>
               </div>

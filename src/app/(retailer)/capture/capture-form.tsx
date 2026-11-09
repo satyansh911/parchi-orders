@@ -71,7 +71,7 @@ export function CaptureForm({ s }: { s: CaptureFormStrings }) {
 }
 
 type InputProps = { s: CaptureFormStrings; pending: boolean; onChange: () => void };
-const SUBMIT = "min-h-14 rounded-card bg-accent px-5 text-lg font-semibold text-paper disabled:bg-paper-dim disabled:text-ink-faint";
+const SUBMIT = "min-h-14 rounded-card bg-accent px-5 text-lg font-semibold text-white disabled:bg-paper-dim disabled:text-ink-faint";
 
 function TextInput({ s, pending, onChange, onSend }: InputProps & { onSend: (message: string) => void }) {
   const [message, setMessage] = useState("");
@@ -164,7 +164,7 @@ function VoiceInput({ s, pending, onChange, onError, onSend }: InputProps & { on
     <div className="flex flex-col gap-3">
       <p className="text-sm text-ink-muted">{s["capture.voice.hint"]}</p>
       <button type="button" onClick={() => (recording ? recorder.current?.stop() : start())} aria-pressed={recording}
-        className={`min-h-16 rounded-card text-lg font-semibold ${recording ? "bg-danger text-paper" : "border-2 border-accent text-accent"}`}>
+        className={`min-h-16 rounded-card text-lg font-semibold ${recording ? "bg-danger text-white" : "border-2 border-accent text-accent"}`}>
         {recording ? fill(s["capture.voice.stop"], { s: seconds }) : clip ? s["capture.voice.again"] : `● ${s["capture.voice.record"]}`}
       </button>
       {clip && <audio controls src={clip.url} className="w-full" />}
