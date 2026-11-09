@@ -4,6 +4,7 @@ export const CATALOGUE_STRING_KEYS = [
   "catalogue.perCase", "catalogue.gstExtra", "catalogue.perPiece", "catalogue.piecesPerCase", "catalogue.mrp",
   "catalogue.inStock", "catalogue.lowStock", "catalogue.outOfStock",
   "catalogue.noMatch", "catalogue.clearSearch", "catalogue.empty", "catalogue.resultCount",
+  "catalogue.discountOn", "catalogue.free", "catalogue.freeEarned", "catalogue.nextFree",
 ] as const;
 
 export type CatalogueStrings = Record<(typeof CATALOGUE_STRING_KEYS)[number], string>;

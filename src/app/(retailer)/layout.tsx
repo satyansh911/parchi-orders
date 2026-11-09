@@ -6,6 +6,7 @@ import { getRetailerAccount } from "@/server/data/retailers";
 import { db } from "@/server/db";
 import { getViewer } from "@/server/auth/viewer";
 import { BottomNav } from "@/ui/bottom-nav";
+import { PackSprite } from "@/ui/pack-image";
 import { CartBadge } from "./cart/cart-controls";
 import { CartIcon, GridIcon, ListIcon, SlipIcon } from "@/ui/icons";
 import { LocaleToggle } from "@/ui/locale-toggle";
@@ -16,7 +17,8 @@ import { LogoutButton } from "@/ui/logout-button";
 // static shell (D73). Each page still enforces its own role check.
 export default function RetailerLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh max-w-3xl pb-20">
+    <div className="mx-auto min-h-dvh max-w-6xl pb-24">
+      <PackSprite />
       <header className="sticky top-0 z-10 flex min-h-14 items-center gap-2 border-b border-line bg-paper/95 px-4 backdrop-blur">
         <Suspense fallback={<div className="h-5 w-40 animate-pulse rounded bg-paper-dim" />}>
           <HeaderContent />

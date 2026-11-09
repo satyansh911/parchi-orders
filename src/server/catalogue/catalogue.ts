@@ -10,7 +10,11 @@ import { availableCases } from "@/domain/stock/line-stock";
 import type { Viewer } from "../auth/session-store";
 import { getPricingTier } from "../data/retailers";
 
-export type CatalogueOffer = { id: string; type: "FREE_GOODS" | "SLAB_DISCOUNT"; labelEn: string; labelHi: string };
+/** Offer terms are the same for every retailer, so they can be shown on the card (display only; the cart prices for real). */
+export type CatalogueOffer = {
+  id: string; type: "FREE_GOODS" | "SLAB_DISCOUNT"; labelEn: string; labelHi: string;
+  buyCases: number | null; freeCases: number | null; minCases: number | null; discountBps: number | null;
+};
 
 export type CatalogueItem = {
   id: string;
@@ -69,7 +73,7 @@ export function toCatalogueItem(row: SkuRow, tierDiscountBps: number, now: Date)
     stock: stockBand(availableCases(row.stockCases, row.reservedCases)),
     offers: row.schemes
       .filter((s) => isSchemeActive(s, now))
-      .map((s) => ({ id: s.id, type: s.type, labelEn: s.labelEn, labelHi: s.labelHi })),
+      .map((s) => ({ id: s.id, type: s.type, labelEn: s.labelEn, labelHi: s.labelHi, buyCases: s.buyCases, freeCases: s.freeCases, minCases: s.minCases, discountBps: s.discountBps })),
   };
 }
 
