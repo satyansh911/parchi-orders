@@ -186,7 +186,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
       {fresh?.problem === "ORDER_TOO_LARGE" && <p role="alert" className="text-sm font-medium text-danger">{s["cart.tooLarge"]}</p>}
 
       {confirming && fresh?.credit.hold ? (
-        <section role="alertdialog" aria-labelledby="hold-title" aria-describedby="hold-body" className="flex flex-col gap-3 rounded-card border-2 border-warn bg-warn-soft p-4">
+        <section role="alertdialog" aria-labelledby="hold-title" aria-describedby="hold-body" className="anim-sheet flex flex-col gap-3 rounded-[16px] border border-[#efcf9b] bg-warn-soft p-4 shadow-[var(--shadow-raised)]">
           <h2 id="hold-title" className="font-semibold">{s["cart.confirmHold.title"]}</h2>
           <p id="hold-body" className="text-sm">{fill(s["cart.confirmHold.body"], { amount: formatPaise(fresh.credit.overByPaise) })}</p>
           <div className="flex gap-2">
@@ -195,12 +195,12 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
           </div>
         </section>
       ) : (
-        <div className="sticky bottom-16 z-10 -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur">
+        <div className="sticky bottom-[68px] z-10 -mx-4 border-t border-line bg-paper px-4 py-3 shadow-[var(--shadow-raised)]">
           <button
             type="button"
             disabled={!canPlace}
             onClick={() => (fresh?.credit.hold ? setConfirming(true) : start(false))}
-            className="flex min-h-14 w-full items-center justify-between rounded-card bg-accent px-5 text-lg font-semibold text-paper disabled:bg-paper-dim disabled:text-ink-faint"
+            className="press flex min-h-14 w-full items-center justify-between rounded-[14px] bg-accent px-5 text-lg font-semibold text-paper active:bg-accent-strong disabled:bg-paper-dim disabled:text-ink-faint"
           >
             <span>{submitting || locked ? s["cart.placing"] : s["cart.place"]}</span>
             {fresh && <span className="tabular-nums">{formatPaise(fresh.totals.totalPaise)}</span>}
@@ -214,6 +214,9 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
 function PlacedPanel({ placed, s }: { placed: Extract<PlaceOrderResult, { outcome: "PLACED" }>; s: CartStrings }) {
   return (
     <section className="flex flex-col items-center gap-3 py-12 text-center" aria-live="polite">
+      <span className="anim-pop grid h-20 w-20 place-items-center rounded-full bg-ok-soft text-ok" aria-hidden="true">
+        <svg className="check-draw" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+      </span>
       <h2 className="text-xl font-semibold">{placed.alreadyPlaced ? s["cart.placed.already"] : s["cart.placed.title"]}</h2>
       <p className="text-lg font-bold">{fill(s["cart.placed.number"], { number: placed.number })}</p>
       <p className={placed.status === "CREDIT_HOLD" ? "font-medium text-warn" : "text-ink-muted"}>{s[`cart.placed.${placed.status}`]}</p>
@@ -234,12 +237,18 @@ function CartLineCard({ result, cases, locked, locale, s, update }: { result: Ca
   return (
     <li className={`flex flex-col gap-3 rounded-card border p-3 ${needsAttention ? "border-warn/60 bg-warn-soft/40" : "border-line bg-paper"}`}>
       <div className="flex gap-3">
-        {sku && <PackImage shape={sku.imageKey} brand={sku.brand} size={56} />}
+        {sku && <PackImage shape={sku.imageKey} brand={sku.brand} name={sku.nameEn} packSize={sku.packSize} size={56} />}
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold leading-snug">{name}</h3>
           {result.status === "OK" && <LinePrice line={result.line} s={s} />}
         </div>
-        {result.status === "OK" && <p className="text-right font-bold tabular-nums">{formatPaise(result.line.lineTotalPaise)}</p>}
+        {result.status === "OK" && (
+          <div className="flex flex-col items-end">
+            {result.line.discountPaise > 0 && <s key={`w${result.line.taxablePaise}`} className="was num text-xs">{formatPaise(result.line.taxablePaise)}</s>}
+            <p key={`n${result.line.lineTotalPaise}`} className={`num text-right font-bold ${result.line.discountPaise > 0 ? "price-new" : ""}`}>{formatPaise(result.line.taxablePaise - result.line.discountPaise)}</p>
+            <p className="text-xs text-ink-faint">+ GST</p>
+          </div>
+        )}
       </div>
 
       {result.status === "OK" && <OfferNotes line={result.line} nudge={locked ? null : result.nudge} locale={locale} s={s} onNudge={(target) => update((c) => setCases(c, skuId, target))} />}
@@ -305,11 +314,28 @@ function CartLineCard({ result, cases, locked, locale, s, update }: { result: Ca
 }
 
 function LinePrice({ line, s }: { line: LineView; s: CartStrings }) {
+  const perCase = line.discountPaise > 0 ? line.casePricePaise - Math.floor((line.casePricePaise * line.discountBps) / 10_000 + 0.5) : line.casePricePaise;
   return (
-    <p className="text-sm text-ink-muted">
-      {fill(s["cart.cases"], { n: line.paidCases })} × {formatPaise(line.casePricePaise)}
-      {line.freeCases > 0 && <span className="ml-1 rounded-full bg-accent-soft px-2 font-semibold text-accent-strong">{fill(s["cart.freeCases"], { n: line.freeCases })}</span>}
-    </p>
+    <div className="flex flex-col gap-1">
+      <p className="num flex flex-wrap items-baseline gap-x-1.5 text-sm text-ink-muted">
+        <span>{fill(s["cart.cases"], { n: line.paidCases })} ×</span>
+        {line.discountPaise > 0 && <s key={`c${line.casePricePaise}`} className="was">{formatPaise(line.casePricePaise)}</s>}
+        <span className={line.discountPaise > 0 ? "price-new font-semibold text-ink" : ""}>{formatPaise(perCase)}</span>
+      </p>
+      {line.discountPaise > 0 && (
+        <span key={line.discountBps} className="anim-pop self-start rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-semibold text-ok-strong">
+          ✓ {fill(s["cart.discountChip"], { pct: formatBps(line.discountBps) })}
+        </span>
+      )}
+      {line.freeCases > 0 && (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span key={line.freeCases} className="confetti anim-pop rounded-full bg-ok px-2.5 py-0.5 text-xs font-bold tracking-wide text-paper">
+            {s["cart.freeChip"]}<i /><i /><i /><i />
+          </span>
+          <span className="num text-xs font-semibold text-ok-strong">{fill(s["cart.freeCases"], { n: line.freeCases })} · {fill(s["cart.worth"], { value: formatPaise(line.freeValuePaise) })}</span>
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -320,11 +346,14 @@ function OfferNotes({ line, nudge, locale, s, onNudge }: { line: LineView; nudge
       {line.applied && <p className="text-accent-strong">{fill(s["cart.bestOffer"], { offer: label(line.applied) })}</p>}
       {line.applied && line.otherOffer && <p className="text-ink-muted">{fill(s["cart.otherOffer"], { offer: label(line.otherOffer) })}</p>}
       {nudge && (
-        <button type="button" onClick={() => onNudge(nudge.targetPaidCases)} className="min-h-11 self-start rounded-full border border-dashed border-accent px-3 text-left font-medium text-accent">
-          {nudge.type === "FREE_GOODS"
-            ? fill(s["cart.nudgeFree"], { n: nudge.addCases, free: nudge.extraFreeCases })
-            : fill(s["cart.nudgeDiscount"], { n: nudge.addCases, pct: formatBps(nudge.discountBps) })}
-        </button>
+        <div className="flex flex-col gap-1.5 rounded-card bg-accent-soft/60 p-2">
+          <button type="button" onClick={() => onNudge(nudge.targetPaidCases)} className="press min-h-11 self-start rounded-full border border-accent bg-paper px-3 text-left font-semibold text-accent-strong">
+            {nudge.type === "FREE_GOODS"
+              ? fill(s["cart.nudgeFree"], { n: nudge.addCases, free: nudge.extraFreeCases })
+              : fill(s["cart.nudgeDiscount"], { n: nudge.addCases, pct: formatBps(nudge.discountBps) })}
+          </button>
+          <span className="prog" aria-hidden="true"><i style={{ width: `${Math.min(100, (line.paidCases / nudge.targetPaidCases) * 100)}%` }} /></span>
+        </div>
       )}
     </div>
   );
@@ -332,6 +361,8 @@ function OfferNotes({ line, nudge, locale, s, onNudge }: { line: LineView; nudge
 
 function Totals({ preview, s }: { preview: CartPreview; s: CartStrings }) {
   const t = preview.totals;
+  const freeValue = preview.lines.reduce((sum, l) => sum + (l.status === "OK" ? l.line.freeValuePaise : 0), 0);
+  const saved = t.discountPaise + freeValue;
   const row = (label: string, value: string, strong = false) => (
     <div className={`flex justify-between gap-3 ${strong ? "text-lg font-bold" : "text-sm"}`}>
       <dt>{label}</dt>
@@ -339,13 +370,36 @@ function Totals({ preview, s }: { preview: CartPreview; s: CartStrings }) {
     </div>
   );
   return (
-    <dl className="flex flex-col gap-1.5 rounded-card border border-line p-3">
+    <dl className="flex flex-col gap-1.5 rounded-card border border-line bg-paper p-4">
       {row(s["cart.taxable"], formatPaise(t.taxablePaise))}
-      {t.discountPaise > 0 && row(s["cart.discount"], `− ${formatPaise(t.discountPaise)}`)}
-      {t.gstByRate.map((g) => row(fill(s["cart.gstAt"], { rate: formatBps(g.gstBps) }), formatPaise(g.gstPaise)))}
+      {t.discountPaise > 0 && (
+        <div className="flex justify-between gap-3 text-sm font-semibold text-ok-strong">
+          <dt>{s["cart.discount"]}</dt>
+          <dd className="num">− {formatPaise(t.discountPaise)}</dd>
+        </div>
+      )}
+      {t.gstByRate.map((g) => <div key={g.gstBps}>{row(fill(s["cart.gstAt"], { rate: formatBps(g.gstBps) }), formatPaise(g.gstPaise))}</div>)}
       <div className="my-1 border-t border-line" />
       {row(s["cart.payable"], formatPaise(t.totalPaise), true)}
+      {saved > 0 && <p key={saved} className="anim-in self-end text-sm font-semibold text-ok-strong">{fill(s["cart.youSave"], { amount: formatPaise(saved) })}</p>}
     </dl>
+  );
+}
+
+/** Limit as a bar: already used (outstanding + open orders), this order, and any overrun. */
+function CreditMeter({ preview }: { preview: CartPreview }) {
+  const c = preview.credit;
+  const limit = Math.max(1, c.limitPaise);
+  const used = Math.min(limit, c.outstandingPaise + c.openOrdersPaise);
+  const thisOrder = Math.min(limit - used, preview.totals.totalPaise);
+  const over = c.hold ? Math.min(limit, c.overByPaise) : 0;
+  const pct = (n: number) => `${(n / limit) * 100}%`;
+  return (
+    <div className="meter" aria-hidden="true">
+      <i className="m-used" style={{ width: pct(used) }} />
+      <i className="m-this" style={{ width: pct(thisOrder) }} />
+      {over > 0 && <i className="m-over" style={{ width: pct(over) }} />}
+    </div>
   );
 }
 
@@ -358,8 +412,9 @@ function CreditPanel({ preview, s }: { preview: CartPreview; s: CartStrings }) {
     </div>
   );
   return (
-    <section className="flex flex-col gap-1.5 rounded-card border border-line p-3">
+    <section className="flex flex-col gap-2 rounded-card border border-line bg-paper p-4">
       <h2 className="text-sm font-semibold">{s["cart.credit.title"]}</h2>
+      <CreditMeter preview={preview} />
       <dl className="flex flex-col gap-1">
         {row(s["cart.credit.limit"], c.limitPaise)}
         {row(s["cart.credit.outstanding"], c.outstandingPaise)}

@@ -9,6 +9,7 @@ export const CART_STRING_KEYS = [
   "cart.remove", "cart.outOfStock", "cart.inactive", "cart.unknown", "cart.shortMore", "cart.shortFree",
   "cart.optionWithFree", "cart.optionWithout", "cart.optionWithoutDiscount", "cart.optionMax",
   "cart.offerChanged", "cart.useBestOffer", "cart.taxable", "cart.discount", "cart.gstAt", "cart.payable", "cart.priceNote",
+  "cart.youSave", "cart.worth", "cart.freeChip", "cart.discountChip", "cart.beforeDiscount",
   "cart.credit.title", "cart.credit.limit", "cart.credit.outstanding", "cart.credit.openOrders", "cart.credit.available", "cart.credit.overBy",
   "cart.tooLarge", "cart.fixLines", "catalogue.perCase", "catalogue.gstExtra",
   "cart.place", "cart.placing", "cart.confirmHold.title", "cart.confirmHold.body", "cart.confirmHold.yes", "cart.confirmHold.no",
