@@ -60,6 +60,7 @@ describe("geminiProvider (timeouts and failures)", () => {
     });
     expect(await p.extract(prompt, ctx)).toEqual({ ok: true, text: "{}", model: "gemini-3.8-flash" });
     expect(seen).toMatchObject({ responseMimeType: "application/json", temperature: 0, thinkingConfig: { thinkingLevel: "LOW" }, httpOptions: { retryOptions: { attempts: 1 } } });
+    expect((seen.httpOptions as Record<string, unknown>).timeout).toBeUndefined(); // the API rejects deadlines under 10 s
   });
 
   it("times out as TIMEOUT", async () => {

@@ -38,8 +38,10 @@ export function geminiProvider(model: string, generate: Generate, timeoutMs = CA
             maxOutputTokens: MAX_OUTPUT_TOKENS,
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             abortSignal: controller.signal,
-            // Our timeout is the limit: no SDK retries (its default is 5).
-            httpOptions: { timeout: timeoutMs, retryOptions: { attempts: 1 } },
+            // Our AbortController is the limit. No SDK retries (its default is 5), and
+            // no httpOptions.timeout: the SDK sends it as a server deadline, which the
+            // API rejects below 10 s (400 INVALID_ARGUMENT, seen on the live deploy).
+            httpOptions: { retryOptions: { attempts: 1 } },
           },
         });
         return { ok: true, text: response.text ?? "", model };
