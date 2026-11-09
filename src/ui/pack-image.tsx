@@ -1,31 +1,79 @@
-// Lightweight SVG pack illustrations (D25): one simple silhouette per pack
-// shape, tinted by brand. A few hundred bytes each, no image requests on 3G.
+// Product pack illustrations (D25, redesign). Each product = its pack shape
+// (from the catalogue's imageKey) + a motif picked from its name + a pack
+// colour, with the fictional brand on the band and the pack size on a label.
+// All shapes and motifs live in one sprite (<PackSprite/>, sent once per
+// page), so each image is a few hundred bytes and needs no network request.
 // Decorative: the product name is always shown next to it.
 
-const BRAND_TINT: Record<string, { fill: string; ink: string }> = {
-  "Rewa Foods": { fill: "#f6e7d3", ink: "#9a5b13" },
-  "Kanha Chai": { fill: "#e3eedc", ink: "#3f6212" },
-  "Sitara Home Care": { fill: "#dfe8f6", ink: "#1e40af" },
-  "Bhedaghat Masale": { fill: "#f6e0dc", ink: "#9f1d1d" },
-};
-const FALLBACK = { fill: "#ececea", ink: "#5b5b61" };
+import { PACK_SPRITE } from "./pack-sprite";
 
-const SHAPES: Record<string, (c: { fill: string; ink: string }) => React.ReactNode> = {
-  box: (c) => <><rect x="22" y="14" width="44" height="60" rx="4" fill={c.fill} stroke={c.ink} strokeWidth="2.5" /><rect x="22" y="34" width="44" height="14" fill={c.ink} opacity=".85" /></>,
-  packet: (c) => <><path d="M18 22 L70 22 L66 70 L22 70 Z" fill={c.fill} stroke={c.ink} strokeWidth="2.5" strokeLinejoin="round" /><path d="M18 22 l4 -6 h44 l4 6" fill="none" stroke={c.ink} strokeWidth="2.5" /><circle cx="44" cy="46" r="9" fill={c.ink} opacity=".85" /></>,
-  pouch: (c) => <><path d="M26 14 h36 l4 52 a8 8 0 0 1 -8 8 h-28 a8 8 0 0 1 -8 -8 Z" fill={c.fill} stroke={c.ink} strokeWidth="2.5" strokeLinejoin="round" /><path d="M26 22 h36" stroke={c.ink} strokeWidth="2.5" /><rect x="32" y="38" width="24" height="16" rx="3" fill={c.ink} opacity=".85" /></>,
-  carton: (c) => <><path d="M20 30 L44 18 L68 30 L68 68 L20 68 Z" fill={c.fill} stroke={c.ink} strokeWidth="2.5" strokeLinejoin="round" /><path d="M20 30 L68 30" stroke={c.ink} strokeWidth="2.5" /><rect x="30" y="40" width="28" height="12" rx="2" fill={c.ink} opacity=".85" /></>,
-  bag: (c) => <><path d="M20 20 h48 v50 a4 4 0 0 1 -4 4 h-40 a4 4 0 0 1 -4 -4 Z" fill={c.fill} stroke={c.ink} strokeWidth="2.5" /><path d="M20 20 l6 -6 h36 l6 6" fill="none" stroke={c.ink} strokeWidth="2.5" /><circle cx="44" cy="46" r="12" fill="none" stroke={c.ink} strokeWidth="4" opacity=".85" /></>,
-  bar: (c) => <><rect x="12" y="32" width="64" height="26" rx="8" fill={c.fill} stroke={c.ink} strokeWidth="2.5" /><rect x="30" y="40" width="28" height="10" rx="5" fill={c.ink} opacity=".85" /></>,
-  bottle: (c) => <><path d="M38 10 h12 v10 l8 10 v40 a4 4 0 0 1 -4 4 h-20 a4 4 0 0 1 -4 -4 v-40 l8 -10 Z" fill={c.fill} stroke={c.ink} strokeWidth="2.5" strokeLinejoin="round" /><rect x="34" y="44" width="20" height="16" rx="2" fill={c.ink} opacity=".85" /></>,
+type Shape = "pouch" | "carton" | "bottle" | "packet" | "box" | "bag" | "bar";
+
+const BRANDS: Record<string, { short: string; br: string; br2: string }> = {
+  "Rewa Foods": { short: "Rewa", br: "#C2410C", br2: "#7C2D12" },
+  "Kanha Chai": { short: "Kanha", br: "#3730A3", br2: "#1E1B4B" },
+  "Bhedaghat Masale": { short: "Bhedaghat", br: "#7F1D1D", br2: "#450A0A" },
+  "Sitara Home Care": { short: "Sitara", br: "#1D4ED8", br2: "#1E3A8A" },
 };
 
-export function PackImage({ shape, brand, size = 88 }: { shape: string; brand: string; size?: number }) {
-  const tint = BRAND_TINT[brand] ?? FALLBACK;
-  const draw = SHAPES[shape] ?? SHAPES.box;
+// Where the motif, brand and size sit on each shape (from the design).
+const LAYOUT: Record<Shape, { m: [number, number, number]; bt: [number, number]; lt: [number, number] }> = {
+  packet: { m: [33, 38, 22], bt: [44, 31.3], lt: [67.5, 59] },
+  box: { m: [26, 49, 20], bt: [40, 41.3], lt: [58, 69.8] },
+  pouch: { m: [33, 37, 22], bt: [44, 28.8], lt: [44, 71.6] },
+  bag: { m: [34, 46, 20], bt: [44, 38.6], lt: [44, 75.6] },
+  carton: { m: [30, 41, 22], bt: [41, 32.3], lt: [41, 73.7] },
+  bottle: { m: [35, 49, 18], bt: [44, 43.3], lt: [44, 75.2] },
+  bar: { m: [32.5, 50.5, 15], bt: [44, 44.8], lt: [65, 60.7] },
+};
+
+// First match wins: [name pattern, motif, pack colour, bottle top].
+const MOTIFS: Array<[RegExp, string, string, string?]> = [
+  [/cookie/i, "cookie", "#F2D3A8"],
+  [/cracker/i, "cracker", "#F7E6BC"],
+  [/chips/i, "chips", "#F9D65C"],
+  [/bhujia|mixture|namkeen/i, "namkeen", "#F4A340"],
+  [/cream biscuit/i, "biscuit", "#F3DCE6"],
+  [/marie/i, "biscuit", "#EAD7B7"],
+  [/biscuit/i, "biscuit", "#FBF3E1"],
+  [/green tea/i, "teabag", "#CFE3C4"],
+  [/bags/i, "teabag", "#EFE8D8"],
+  [/tea masala|garam masala|masala/i, "masala", "#A55A33"],
+  [/tea dust/i, "leaf", "#6B4A2E"],
+  [/tea/i, "leaf", "#2F7D4E"],
+  [/turmeric|haldi/i, "turmeric", "#F5C518"],
+  [/chilli/i, "chilli", "#D9372B"],
+  [/coriander|dhania/i, "coriander", "#8DB255"],
+  [/dishwash/i, "dish", "#D6EFA0", "cap"],
+  [/floor/i, "floor", "#E4D8F5", "cap"],
+  [/toilet/i, "toilet", "#D3E9F5", "nozzle"],
+  [/glass/i, "glass", "#D7F0F7", "trigger"],
+  [/phenyl/i, "phenyl", "#D3EBDC", "cap"],
+  [/liquid/i, "swirl", "#C7DAFF", "cap"],
+  [/detergent/i, "swirl", "#DCE8FF"],
+];
+
+/** "75 g" → "75g", "1 L" → "1L", "25 bags" → "25". */
+const sizeLabel = (packSize: string) => packSize.replace(/\s+/g, "").replace(/bags?$/i, "").slice(0, 6);
+
+/** Render once per page, before any <PackImage>. */
+export function PackSprite() {
+  return <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: `<defs>${PACK_SPRITE}</defs>` }} />;
+}
+
+export function PackImage({ shape, brand, name, packSize, size = 88 }: { shape: string; brand: string; name: string; packSize: string; size?: number }) {
+  const s = (shape in LAYOUT ? shape : "box") as Shape;
+  const layout = LAYOUT[s];
+  const [, motif, pk, top] = MOTIFS.find(([re]) => re.test(name)) ?? [/./, "biscuit", "#EFE8D8"];
+  const b = BRANDS[brand] ?? { short: brand.split(" ")[0], br: "#465350", br2: "#22302D" };
+  const style = { width: size, height: size, "--pk": pk, "--br": b.br, "--br2": b.br2 } as React.CSSProperties;
   return (
-    <svg width={size} height={size} viewBox="0 0 88 88" aria-hidden="true" focusable="false" className="shrink-0 rounded-card bg-paper-dim">
-      {draw(tint)}
+    <svg viewBox="0 0 88 88" style={style} className="pack-art" aria-hidden="true" focusable="false">
+      <use href={`#s-${s}`} />
+      {s === "bottle" && <use href={`#p-${top ?? "cap"}`} />}
+      <use href={`#m-${motif}`} x={layout.m[0]} y={layout.m[1]} width={layout.m[2]} height={layout.m[2]} />
+      <text className="pack-bt" x={layout.bt[0]} y={layout.bt[1]} textAnchor="middle">{b.short}</text>
+      <text className="pack-lt" x={layout.lt[0]} y={layout.lt[1]} textAnchor="middle">{sizeLabel(packSize)}</text>
     </svg>
   );
 }

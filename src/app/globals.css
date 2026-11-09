@@ -1,40 +1,50 @@
 @import "tailwindcss";
 
 /*
- * Design tokens (D84, D85). Restrained palette: neutral ink on paper, one teal
- * accent for actions and offers, semantic colours only for stock status.
- * Light theme only. System fonts only: no web-font download on 3G; Android
- * ships Noto Sans Devanagari for Hindi.
+ * Design tokens (D84, D85; redesign "Quiet, warm, money-first").
+ * A warm off-white ground, white cards, one teal accent, and colour that only
+ * ever means something: green = in stock / savings, amber = needs attention,
+ * red = errors and out of stock. Light theme only. System fonts only: no
+ * web-font download on 3G; Android ships Noto Sans Devanagari for Hindi.
+ * Existing token names are kept so every screen picks up the new palette.
  */
 @theme {
-  --color-ink: #1c1c1e;
-  --color-ink-muted: #5b5b61;
-  --color-ink-faint: #8a8a90;
-  --color-paper: #ffffff;
-  --color-paper-dim: #f5f5f4;
-  --color-line: #e2e2e0;
+  --color-bg: #f6f5f1; /* app ground */
+  --color-ink: #17201e;
+  --color-ink-muted: #465350; /* ink-2: 8:1 */
+  --color-ink-faint: #5e6865; /* ink-3: 5.3:1 on bg */
+  --color-paper: #ffffff; /* cards, bars */
+  --color-paper-dim: #efeee9; /* sunken: tracks, segmented, skeletons */
+  --color-line: #e3e1da;
+  --color-line-strong: #cbc8bf;
+  --color-night: #22302d; /* offline banner, toast */
 
-  --color-accent: #0f766e; /* teal-700: buttons, links, offers */
-  --color-accent-strong: #115e59;
-  --color-accent-soft: #e6f4f2;
+  --color-accent: #0f766e;
+  --color-accent-strong: #0b5d57;
+  --color-accent-soft: #e4f2ef;
 
-  --color-ok: #15803d; /* in stock */
-  --color-ok-soft: #e9f6ee;
-  --color-warn: #b45309; /* low stock, credit hold */
-  --color-warn-soft: #fdf3e4;
-  --color-danger: #b91c1c; /* out of stock, errors */
-  --color-danger-soft: #fdecec;
+  --color-ok: #157f3b;
+  --color-ok-strong: #11602d;
+  --color-ok-soft: #e5f3e9;
+  --color-warn: #a34a07;
+  --color-warn-bar: #d97706;
+  --color-warn-soft: #fcf0dc;
+  --color-danger: #b42318;
+  --color-danger-soft: #fbeae8;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Helvetica Neue", Arial, sans-serif;
 
   --radius-card: 0.75rem;
+  --shadow-raised: 0 -1px 0 rgb(23 32 30 / 0.04), 0 8px 24px -6px rgb(23 32 30 / 0.18);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
-  background: var(--color-paper);
+  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Visible keyboard focus everywhere; never removed. */
@@ -43,9 +53,163 @@ html {
   outline-offset: 2px;
 }
 
+@utility num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---------- Product pack art (see src/ui/pack-image.tsx) ---------- */
+.pack-art {
+  display: block;
+  flex: none;
+  border-radius: 10px;
+  background: #f3f1eb;
+}
+.pack-art .pack-bt {
+  font: 700 6.5px/1 system-ui, sans-serif;
+  fill: #fff;
+  letter-spacing: 0.03em;
+}
+.pack-art .pack-lt {
+  font: 700 6px/1 system-ui, sans-serif;
+  fill: #2a2a2a;
+}
+
+/* ---------- Prices ---------- */
+/* Original price struck through; the line draws across when it appears. */
+s.was {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+  color: var(--color-ink-faint);
+  font-weight: 500;
+}
+s.was::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: 55%;
+  height: 1.5px;
+  background: currentColor;
+  transform-origin: left center;
+  animation: draw 200ms var(--ease-out) both;
+}
+.price-new {
+  animation: fadein 200ms var(--ease-out) 80ms both;
+}
+
+/* ---------- Meters ---------- */
+.meter {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-paper-dim);
+}
+.meter > i {
+  display: block;
+  height: 100%;
+  transition: width 250ms var(--ease-out);
+}
+.meter .m-used { background: #8c9592; }
+.meter .m-this { background: var(--color-accent); }
+.meter .m-over { background: repeating-linear-gradient(-45deg, var(--color-warn-bar) 0 4px, #e9a04a 4px 8px); }
+.prog {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-paper-dim);
+}
+.prog > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent);
+  transition: width 250ms var(--ease-out);
+}
+
+/* ---------- Motion (transform + opacity only; 120–250 ms) ---------- */
+.anim-pop { animation: pop 220ms var(--ease-out) both; }
+.anim-bump { animation: bump 250ms var(--ease-out); }
+.anim-flip { animation: flip 160ms var(--ease-out); }
+.anim-in { animation: fadein 220ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.anim-sheet { animation: sheetin 250ms var(--ease-out) both; }
+.anim-slide { animation: slidedown 200ms var(--ease-out) both; }
+.press { transition: transform 120ms var(--ease-out), background-color 120ms var(--ease-out); }
+.press:active { transform: scale(0.97); }
+.press-round:active { transform: scale(0.88); }
+.skeleton { background: #e7e5df; animation: breathe 1.6s ease-in-out infinite; }
+.reading-dots > i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: breathe 1.2s ease-in-out infinite;
+}
+.reading-dots > i:nth-child(2) { animation-delay: 0.16s; }
+.reading-dots > i:nth-child(3) { animation-delay: 0.32s; }
+.level { display: flex; align-items: center; gap: 4px; height: 32px; }
+.level > i {
+  display: block;
+  width: 5px;
+  height: 32px;
+  border-radius: 3px;
+  background: currentColor;
+  transform-origin: center;
+  animation: level 0.9s ease-in-out infinite;
+}
+.level > i:nth-child(2n) { animation-delay: 0.15s; }
+.level > i:nth-child(3n) { animation-delay: 0.3s; }
+.check-draw path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: ckdraw 260ms var(--ease-out) 80ms forwards;
+}
+/* "+1 free" celebration: a pop and four dots flying out. */
+.confetti { position: relative; }
+.confetti > i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: confetti 300ms var(--ease-out) 60ms both;
+}
+.confetti > i:nth-child(1) { --dx: -18px; --dy: -14px; background: var(--color-ok); }
+.confetti > i:nth-child(2) { --dx: 16px; --dy: -16px; background: var(--color-warn-bar); }
+.confetti > i:nth-child(3) { --dx: -14px; --dy: 12px; background: var(--color-accent); }
+.confetti > i:nth-child(4) { --dx: 18px; --dy: 10px; background: var(--color-ok); }
+
+@keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes sheetin { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes slidedown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes bump { 40% { transform: scale(1.22); } }
+@keyframes flip { from { opacity: 0; transform: translateY(4px); } }
+@keyframes breathe { 50% { opacity: 0.45; } }
+@keyframes level { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
+@keyframes ckdraw { to { stroke-dashoffset: 0; } }
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.5); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
+  .skeleton, .reading-dots > i, .level > i { animation: none !important; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  html { background: #fff; }
 }
