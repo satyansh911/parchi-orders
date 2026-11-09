@@ -1076,3 +1076,15 @@ Before starting implementation:
 10. Append new decisions to Section D instead of overwriting existing decisions.
 
 **Important:** Prioritize a polished, mobile-first retailer experience and a fully working end-to-end ordering workflow over unnecessary features or architectural complexity.
+
+## Phase 6 implementation decisions (2026-11-09)
+Made under the deadline instruction "make reasonable implementation decisions consistent with existing documentation"; each follows an existing decision.
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-09 | D101 Desk edits | Desk changes paid cases or removes a line; only that line is re-priced at today's price and scheme (D22). Swapping a line's SKU is deferred: the desk rejects with a reason and the retailer re-orders. The last line can't be removed (reject instead). | Smallest safe slice of D22/D32; quantity edits cover the common "cut lines" case |
+| 2026-11-09 | D102 Material change (D32) | Any edit that raises the order total sets `awaitingRetailerAck`; approval is refused on the server until the retailer taps "Accept changes". Decreases don't block. | D32 rule; no SKU swaps in D101, so "increase" is the only material case |
+| 2026-11-09 | D103 Credit at approval (D33) | Approve re-checks credit without counting the order twice; over the limit → system moves it to CREDIT_HOLD with an event. "Release hold and approve" is the desk's explicit override. | D33, D30 |
+| 2026-11-09 | D104 Tally CSV contract (D11, D29) | Sales voucher per order, one row per line; IST date DD-MM-YYYY; party ledger "code shop"; "Sales @ r%" and intra-state "Output CGST/SGST @ r/2%" ledgers (CGST = floor(GST/2)); cases with a separate free-qty column; per-order reconciliation, any mismatch aborts the batch; the desk confirms the previewed count and total; formula-safe cells. | Documented, checkable format; not a native Tally import |
+| 2026-11-09 | D105 Capture → order link | The device cart remembers the capture it came from; placement links it (own, CONFIRMED, unlinked capture only) and sets source AI_CAPTURE, so the desk sees the original message and line resolutions. | Brief: desk "only has to check" messages turned into orders |
+| 2026-11-09 | D106 Desk language | Desk screens English only; retailer screens Hindi + English. | D11 scope trim |
