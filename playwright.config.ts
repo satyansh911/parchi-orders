@@ -39,7 +39,7 @@ export default defineConfig({
     timeout: 240_000,
     reuseExistingServer: false,
     // The app talks ONLY to the guarded test branch; other env comes from .env.
-    env: { DATABASE_URL: testUrl, DIRECT_URL: testUrl, AUTH_DEMO_OTP: "true", NODE_OPTIONS: PREFER_IPV4 },
+    env: { DATABASE_URL: testUrl, DIRECT_URL: testUrl, AUTH_DEMO_OTP: "true", AI_CAPTURE_PROVIDER: "fake", NODE_OPTIONS: PREFER_IPV4 },
     stdout: "ignore",
     stderr: "pipe",
   },

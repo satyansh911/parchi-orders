@@ -14,3 +14,7 @@ export const ListIcon = () => (
 export const CartIcon = () => (
   <svg {...base} aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2" /><circle cx="9.5" cy="20" r="1.2" /><circle cx="17.5" cy="20" r="1.2" /></svg>
 );
+
+export const SlipIcon = () => (
+  <svg {...base} aria-hidden="true"><path d="M6 3h9l3 3v15H6z" /><path d="M9 10h6M9 14h6M9 18h3" /></svg>
+);

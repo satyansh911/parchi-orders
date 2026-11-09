@@ -7,7 +7,7 @@ import { db } from "@/server/db";
 import { getViewer } from "@/server/auth/viewer";
 import { BottomNav } from "@/ui/bottom-nav";
 import { CartBadge } from "./cart/cart-controls";
-import { CartIcon, GridIcon, ListIcon } from "@/ui/icons";
+import { CartIcon, GridIcon, ListIcon, SlipIcon } from "@/ui/icons";
 import { LocaleToggle } from "@/ui/locale-toggle";
 import { LogoutButton } from "@/ui/logout-button";
 
@@ -54,12 +54,13 @@ async function RetailerNav() {
   const viewer = await getViewer();
   if (!viewer || viewer.role !== "RETAILER") return null;
   const { t } = await getTranslator();
-  const s = pickStrings(t, ["nav.catalogue", "nav.orders", "nav.cart", "nav.main", "cart.count"] as const);
+  const s = pickStrings(t, ["nav.catalogue", "nav.capture", "nav.orders", "nav.cart", "nav.main", "cart.count"] as const);
   return (
     <BottomNav
       ariaLabel={s["nav.main"]}
       items={[
         { href: "/catalogue", label: s["nav.catalogue"], icon: <GridIcon /> },
+        { href: "/capture", label: s["nav.capture"], icon: <SlipIcon /> },
         { href: "/orders", label: s["nav.orders"], icon: <ListIcon /> },
         { href: "/cart", label: s["nav.cart"], icon: <CartIcon />, badge: <CartBadge userId={viewer.userId} label={s["cart.count"]} /> },
       ]}
