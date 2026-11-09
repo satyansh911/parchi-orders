@@ -991,6 +991,69 @@ R1–R3 were raised on 2026-11-08 and resolved the same day as D70–D72.
 **Choice:** `previewCart` calls are debounced. Each carries a sequence number, and a response is applied only if it belongs to the latest request; older responses are discarded. While a recalculation is in flight, prices show an "updating" state and Place order is disabled.
 **Why:** An older response must never overwrite a newer cart.
 
+### Phase 5: AI order capture (2026-11-09)
+
+| Date | Decision | Choice | Why |
+|---|---|---|---|
+| 2026-11-09 | D92 Unresolved capture lines (Q1) | Every line resolved or explicitly removed before the cart; D27 deferred | Fits the Phase 4 cart path; no silent loss |
+| 2026-11-09 | D93 Phase 5 scope (Q2) | Retailer capture only; desk paste-on-behalf, desk corrections and aliases in Phase 6 | Keeps Phase 5 focused; evidence is kept |
+| 2026-11-09 | D94 Architecture | One grounded structured-output call + pure server post-processing | Simplest reliable design for this catalogue |
+| 2026-11-09 | D95 Model and SDK (Q3) | `gemini-3.8-flash`, `@google/genai` 2.x pinned exactly | Stable model, mature SDK |
+| 2026-11-09 | D96 Interpretation idempotency (Q4) | Client UUID stored on the capture | A retry is not a second, intentional order |
+| 2026-11-09 | D97 Confidence methodology (refinement A) | Evidence-based, model score is one signal | Self-reported scores aren't calibrated |
+| 2026-11-09 | D98 Cart merge idempotency (refinement B) | Server confirm returns the stored result; device ledger of merged captures | A capture can't add to the cart twice |
+| 2026-11-09 | D99 Limits, tab, evaluation (Q5–Q7) | 1,000 chars, 30 lines; "पर्ची" tab; one approved real-model eval run | As proposed |
+| 2026-11-09 | D100 Fake provider | Test-only, refused on Vercel | Deterministic tests, never in production |
+
+### D92. Unresolved capture lines (Q1; defers D27)
+**Choice:** Every extracted line must be resolved (product and case quantity chosen) or explicitly removed by the retailer before the capture's lines go into the cart. The original words, the model's interpretation and the retailer's resolution (including removals) stay stored on the capture; nothing is silently discarded.
+**D27 is deferred, not dropped:** D27 placed orders with unresolved lines as REVIEW_REQUIRED. Phase 5 routes capture lines through the Phase 4 cart and placement (signed quote, idempotency, reservation, credit), which never creates REVIEW_REQUIRED orders. Supporting D27 would need changes to the cart, the quote, placement and desk tooling; with the submission deadline today, it is deferred to a later phase.
+**Why:** One reliable path to an order; the retailer decides every line explicitly.
+
+### D93. Phase 5 scope (Q2; sequences A.7 and D28)
+**Choice:** Phase 5 delivers retailer capture only. Desk paste-on-behalf, desk corrections and alias saving/approval belong to Phase 6. Phase 5 keeps all evidence that workflow will need: original words, model suggestion, alternatives and the retailer's resolution per line.
+**Why:** Focus; the desk workflow needs desk tooling.
+
+### D94. AI architecture
+**Choice:** One structured-output model call per message, grounded in the active catalogue (short IDs `S1…Sn`), this retailer's past-ordered SKUs, this retailer's approved aliases and the D9 glossary. Strict zod validation, then pure post-processing in `src/domain/capture` decides everything that matters. No RAG, embeddings, vector database, agents or second call. A pre-filter becomes worthwhile above about 300 active SKUs.
+**Why:** The whole catalogue fits in one prompt; deterministic code, not the model, enforces trust.
+
+### D95. Model and SDK (Q3, refinement D)
+**Choice:** `GEMINI_MODEL=gemini-3.8-flash` (stable, not preview, never a floating alias). `@google/genai` pinned to an exact 2.x version (2.32.0 if its API is verified; never 3.0.0 in this phase). Temperature 0, explicit output-token cap, explicit timeout via abort signal, SDK retries disabled, and only a thinking setting the installed SDK supports.
+**Why:** Reproducible behaviour; the time limit is ours, not the SDK's.
+
+### D96. Interpretation idempotency (Q4, refinement C)
+**Choice:** The client generates a UUID per interpretation request and stores it with the capture (`Capture.clientRequestId`, unique). A retry with the same UUID returns the existing capture; another retailer's UUID is refused. Sending the same text again with a new UUID is a new, intentional capture.
+**Why:** A retry and a second intentional order are different operations.
+
+### D97. Confidence methodology (refinement A; refines D8, D10)
+**Choice:** The model's 0–100 score is one signal, adjusted by evidence the server checks itself:
+- +10 if the SKU is in this retailer's past orders; −15 if neither past-ordered nor an alias (D10);
+- −20 and capped at Low if the original words don't support the product (no name, brand, category or glossary match);
+- capped at Low if the model's "original words" are not actually in the message.
+Hard rules override the score:
+- **Needs clarification** if the unit isn't an explicit case word ("peti", "case", "पेटी", "dabba") or the quantity is missing, invalid or not in the words. Pieces/packets are never converted (D3).
+- **Needs clarification** if same-product pack sizes exist and the words don't pin one (a matching pack number, or "chhota"/"bada" picking the smallest/largest). Past orders never override a pack-size ambiguity.
+- **At most Medium** if another product is equally supported by the words, unless past orders single out the suggestion.
+- An exact approved retailer alias gives High only if it maps to one active SKU and the unit and quantity are valid.
+Thresholds: High ≥ 90 (pre-selected), Medium 70–89 (suggested, must be confirmed), Low < 70 (must choose). Every suggestion, including High, can be corrected. Out-of-stock is flagged, not hidden.
+**Why:** A score of 95 must not make an ambiguous product High.
+
+### D98. Cart merge idempotency (refinement B)
+**Choice:**
+- Confirming is idempotent on the server: the first confirmation stores each line's resolution and marks the capture CONFIRMED; any later call returns the stored result (`alreadyConfirmed`) and ignores new input.
+- The device cart keeps a ledger of capture IDs already merged, saved in the same storage write as the cart lines and kept when an order is placed. Merging a capture already in the ledger does nothing.
+- A confirmed capture not yet in the ledger (response lost) can be resumed once; one already in the ledger shows "added to cart".
+**Why:** Retries, reloads and double taps never add the same quantities twice.
+
+### D99. Limits, navigation, evaluation (Q5–Q7)
+**Choice:** Messages up to 1,000 characters; at most 30 extracted lines. A fourth bottom tab "पर्ची" / "Order slip". The real-model evaluation script runs once, only after deterministic tests pass and after a report of fixtures, expected outputs and estimated cost; never automatically.
+**Why:** As proposed and approved.
+
+### D100. Fake provider (test only)
+**Choice:** `AI_CAPTURE_PROVIDER=fake` selects a deterministic fixture provider for integration and E2E tests. The server refuses it when `VERCEL=1`. The default is Gemini.
+**Why:** Automated tests never call a paid API; production can never run on canned answers.
+
 ### D91. Phase 4 security (refinement 5)
 **Choice:** D67, D69 and D73 apply unchanged. No private retailer data is rendered or streamed before session and role verification. Exact stock (above 20) and other retailers' prices are never exposed. All new actions use the D67 wrapper with strict input.
 **Why:** Standing rules.
