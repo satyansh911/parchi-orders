@@ -360,6 +360,16 @@
   <li><b>Restrained palette:</b> one teal accent, amber for warnings and holds, red only for errors and out of stock.</li>
   <li><b>Every screen</b> has loading skeletons, empty states and error states.</li>
 </ul>
+<p><b>Visual redesign.</b> The final UI follows a design system made from a written brief (<code>docs/design-prompt.md</code>), within the same 3G budget.</p>
+<ul>
+  <li><b>Look:</b> a warm off-white ground with white cards, one teal accent, and colour reserved for meaning.</li>
+  <li><b>Discounts on the card:</b> once the cases qualify, the original case price is <s>struck through</s> next to the discounted price, and the line animates across in 200 ms.</li>
+  <li><b>Free goods:</b> earned free cases show a FREE chip with their value and a small pop. A progress bar shows the way to the next free case.</li>
+  <li><b>Cart:</b> it shows "You save ₹X" and a credit meter.</li>
+  <li><b>Product images:</b> built from 7 pack shapes and 17 product motifs drawn once per page (about 9.7 KB, about 2.5 KB gzipped). Each product is then a few hundred bytes and needs no image request. The brands are fictional and copy no real pack.</li>
+  <li><b>Motion:</b> CSS only (transform and opacity, 120–250 ms), switched off by the reduced-motion setting. No new JavaScript dependency.</li>
+  <li><b>Desk:</b> a sidebar on desktop.</li>
+</ul>
 <div class="shots">
   <figure><img src="screenshots/02-catalogue.png" alt="Catalogue"><figcaption>Catalogue: case price + GST label, per-piece price, MRP, stock and offer badges.</figcaption></figure>
   <figure><img src="screenshots/03-cart.png" alt="Cart"><figcaption>Cart: priced by the server engine; slab discount, GST, total payable, credit.</figcaption></figure>
