@@ -39,12 +39,14 @@ test("core journey: Hindi login → search → add → nudge → place → histo
   await expect(page.getByRole("heading", { name: "ऑर्डर हो गया" })).toBeVisible();
   await page.getByRole("link", { name: "ऑर्डर देखें" }).click();
   await expect(page.getByText("मंज़ूरी का इंतज़ार").first()).toBeVisible();
+  // Other specs place orders too, so read this order's number instead of assuming it.
+  const orderNumber = (await page.getByRole("heading", { name: /ऑर्डर #\d+/ }).innerText()).match(/#(\d+)/)![1];
   await expect(page.getByText("+ 1 मुफ़्त")).toBeVisible();
 
   // History lists it; "Order again" copies it back into the (now empty) cart (D9).
   await page.getByRole("link", { name: /सभी ऑर्डर/ }).click();
   await expect(page.getByRole("heading", { name: "आपके ऑर्डर" })).toBeVisible();
-  await page.getByRole("link", { name: /ऑर्डर #91/ }).click();
+  await page.getByRole("link", { name: new RegExp(`ऑर्डर #${orderNumber}\\b`) }).click();
   await page.getByRole("button", { name: "फिर से ऑर्डर करें" }).click();
   await expect(page).toHaveURL(/\/cart/);
   await expect(page.getByRole("group").locator("output").first()).toHaveText("10");

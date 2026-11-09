@@ -17,6 +17,7 @@ test("capture journey: brief's message → review lines → add to cart once", a
   await expect(lines).toHaveCount(3);
   await expect(lines.nth(0)).toContainText("5 peti biscuit chhota");
   await expectNoHorizontalScroll(page);
+  await page.screenshot({ path: "docs/screenshots/06c-capture-review.png" }); // for the TDD (§14)
 
   // The out-of-stock tea line is removed; any line still unchecked is confirmed.
   await lines.nth(2).getByRole("button", { name: "हटाएँ" }).click();
