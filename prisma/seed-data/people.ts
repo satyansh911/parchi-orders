@@ -53,3 +53,23 @@ export function retailerPhone(code: string): string {
   const n = Number(code.slice(2));
   return `99999${String(100 + n).padStart(5, "0")}`;
 }
+
+/** D110: three van routes covering the seeded areas. */
+export const VANS = [
+  { code: "VAN-1", name: "Van 1 · North (Adhartal–Ranjhi)", areas: ["Adhartal", "Vijay Nagar", "Ranjhi", "Ghamapur", "Gohalpur", "Kanchghar", "Karmeta"] },
+  { code: "VAN-2", name: "Van 2 · Central (Napier Town–Sadar)", areas: ["Napier Town", "Wright Town", "Sadar", "Civil Lines", "Madan Mahal", "Dixitpura", "Ganjipura"] },
+  { code: "VAN-3", name: "Van 3 · South (Garha–Gwarighat)", areas: ["Garha", "Gorakhpur", "Gwarighat", "Tilwara", "Bilhari", "Shastri Nagar"] },
+] as const;
+
+/** D109: one salesman per route; fictional names, fake 999990020N phones. */
+export const SALESMEN = [
+  { phone: "9999900201", name: "Rakesh Thakur (salesman)", van: "VAN-1" },
+  { phone: "9999900202", name: "Sanjay Shukla (salesman)", van: "VAN-2" },
+  { phone: "9999900203", name: "Arif Ansari (salesman)", van: "VAN-3" },
+] as const;
+
+export function vanForArea(area: string): (typeof VANS)[number]["code"] {
+  const van = VANS.find((v) => (v.areas as readonly string[]).includes(area));
+  if (!van) throw new Error(`No van route covers ${area}`);
+  return van.code;
+}

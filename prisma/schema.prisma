@@ -17,7 +17,8 @@ datasource db {
 enum Role {
   RETAILER
   DESK
-  // SALESMAN is a future extension (D17).
+  /// D109: orders for his assigned shops only.
+  SALESMAN
 }
 
 enum Locale {
@@ -53,6 +54,23 @@ enum OrderSource {
   AI_CAPTURE
   /// Synthetic history seeded for the demo, from before the app existed (D53, D66).
   HISTORICAL_SEED
+  /// Taken by a salesman during a visit, possibly offline (D108).
+  SALESMAN
+}
+
+/// D111: how the order message reached us.
+enum CaptureInput {
+  TEXT
+  PHOTO
+  VOICE
+}
+
+/// D110: a delivery van and its route.
+model Van {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  name      String
+  retailers Retailer[]
 }
 
 /// Why the line's scheme was chosen (D2, D18, D34, D42).
@@ -120,8 +138,14 @@ model Retailer {
   /// Mocked ledger balance; the real figure lives in Tally.
   outstandingPaise Int
   createdAt        DateTime  @default(now())
+  /// D109: the one salesman who visits this shop.
+  salesmanId       String?
+  salesman         User?     @relation("SalesmanShops", fields: [salesmanId], references: [id])
+  /// D110: the van route that delivers here.
+  vanId            String?
+  van              Van?      @relation(fields: [vanId], references: [id])
 
-  users    User[]
+  users    User[]    @relation("RetailerUsers")
   orders   Order[]
   captures Capture[]
   aliases  Alias[]
@@ -135,7 +159,7 @@ model User {
   role       Role
   /// Set if and only if role = RETAILER (CHECK in migration).
   retailerId String?
-  retailer   Retailer? @relation(fields: [retailerId], references: [id])
+  retailer   Retailer? @relation("RetailerUsers", fields: [retailerId], references: [id])
   locale     Locale    @default(HI)
   createdAt  DateTime  @default(now())
 
@@ -147,6 +171,7 @@ model User {
   aliases          Alias[]
   orderEvents      OrderEvent[]
   exportBatches    ExportBatch[]
+  assignedShops    Retailer[]    @relation("SalesmanShops")
 }
 
 /// D13: the cookie holds a random token; only its SHA-256 hash is stored.
@@ -280,6 +305,8 @@ model Order {
   exportBatch   ExportBatch? @relation(fields: [exportBatchId], references: [id])
 
   placedAt     DateTime  @default(now())
+  /// D108: when a salesman took the order on his phone (may be before placedAt if offline).
+  takenAt      DateTime?
   approvedAt   DateTime?
   approvedById String?
   approvedBy   User?     @relation("OrderApprovedBy", fields: [approvedById], references: [id])
@@ -294,6 +321,7 @@ model Order {
   /// D89: open-orders credit query (retailerId = ? AND status IN open statuses).
   @@index([retailerId, status])
   @@index([awaitingRetailerAck])
+  @@index([status, approvedAt])
 }
 
 /// Prices, scheme and GST are frozen here at submission (D14, D22).
@@ -366,6 +394,8 @@ model Capture {
   /// Untrusted model JSON, stored as received.
   aiResponse      Json?
   status          CaptureStatus
+  /// D111: typed text, or the transcript of a photo / voice note.
+  inputType       CaptureInput  @default(TEXT)
   /// NO_KEY | TIMEOUT | INVALID_JSON | API_ERROR
   failReason      String?
   latencyMs       Int?

@@ -6,6 +6,7 @@
 import { Prisma, type PrismaClient } from "../../src/generated/prisma/client";
 import { seedCatalogue } from "./seed-catalogue";
 import { seedPastOrders } from "./seed-past-orders";
+import { seedFieldTeam } from "./seed-field-team";
 import { seedPeople } from "./seed-people";
 
 export async function runSeed(db: PrismaClient, log: (line: string) => void = console.log) {
@@ -16,6 +17,8 @@ export async function runSeed(db: PrismaClient, log: (line: string) => void = co
   log(`Seeded catalogue: ${catalogue.brands} brands, ${catalogue.categories} categories, ${catalogue.skus} SKUs, ${catalogue.schemes} schemes`);
   const people = await seedPeople(db);
   log(`Seeded people: ${people.tiers} price tiers, ${people.retailers} retailers, ${people.users} users`);
+  const team = await seedFieldTeam(db);
+  log(`Seeded field team: ${team.vans} vans, ${team.salesmen} salesmen, ${team.assigned} shops assigned`);
   const history = await seedPastOrders(db);
   log(`Seeded past orders: ${history.orders} exported orders, ${history.lines} lines`);
 }

@@ -6,10 +6,11 @@ import type { Role } from "@/generated/prisma/enums";
 const AREAS: Record<Role, readonly string[]> = {
   RETAILER: ["/catalogue", "/cart", "/orders", "/capture"],
   DESK: ["/desk"],
+  SALESMAN: ["/salesman"],
 };
 
 export function homeFor(role: Role): string {
-  return role === "DESK" ? "/desk" : "/catalogue";
+  return role === "DESK" ? "/desk" : role === "SALESMAN" ? "/salesman" : "/catalogue";
 }
 
 export function safeNextPath(next: unknown, role: Role): string {

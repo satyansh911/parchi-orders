@@ -15,10 +15,11 @@ import { AccessError, type AccessErrorCode } from "./access-error";
 
 export const ACTION_MARK = Symbol.for("parchi.guardedAction");
 
-export type ActionRole = "PUBLIC" | "SIGNED_IN" | "RETAILER" | "DESK";
+export type ActionRole = "PUBLIC" | "SIGNED_IN" | "RETAILER" | "DESK" | "SALESMAN";
 
 export type RetailerViewer = Viewer & { role: "RETAILER"; retailerId: string };
 export type DeskViewer = Viewer & { role: "DESK" };
+export type SalesmanViewer = Viewer & { role: "SALESMAN" };
 
 type ViewerFor<R extends ActionRole> = R extends "PUBLIC"
   ? Viewer | null
@@ -26,7 +27,9 @@ type ViewerFor<R extends ActionRole> = R extends "PUBLIC"
     ? RetailerViewer
     : R extends "DESK"
       ? DeskViewer
-      : Viewer;
+      : R extends "SALESMAN"
+        ? SalesmanViewer
+        : Viewer;
 
 export type ActionResult<T> =
   | { ok: true; data: T }
@@ -78,6 +81,7 @@ function roleAllows(role: ActionRole, viewer: Viewer): boolean {
   if (role === "SIGNED_IN") return true;
   if (role === "RETAILER") return viewer.role === "RETAILER" && viewer.retailerId !== null;
   if (role === "DESK") return viewer.role === "DESK";
+  if (role === "SALESMAN") return viewer.role === "SALESMAN";
   return true;
 }
 

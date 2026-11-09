@@ -46,3 +46,13 @@ describe("seed people", () => {
     expect(atOrOver.map((r) => r.code)).toEqual(["R-0007", "R-0012", "R-0018"]);
   });
 });
+
+describe("field team (D109, D110)", () => {
+  it("covers every seeded area with exactly one van, and gives each van a salesman with a fake phone", async () => {
+    const { SALESMEN, VANS, vanForArea } = await import("./people");
+    for (const r of RETAILERS) expect(VANS.filter((v) => (v.areas as readonly string[]).includes(r.area))).toHaveLength(1);
+    expect(RETAILERS.map((r) => vanForArea(r.area))).toBeTruthy();
+    expect(new Set(SALESMEN.map((s) => s.van))).toEqual(new Set(VANS.map((v) => v.code)));
+    for (const s of SALESMEN) expect(s.phone).toMatch(FAKE_PATTERN);
+  });
+});

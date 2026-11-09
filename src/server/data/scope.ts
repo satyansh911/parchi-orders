@@ -27,6 +27,21 @@ export function targetRetailerId(viewer: Viewer, requested: string | undefined):
     if (requested !== undefined && requested !== viewer.retailerId) throw new AccessError("NOT_FOUND");
     return viewer.retailerId;
   }
+  // Salesmen reach a shop only through assertSalesmanShop (an async, DB-checked
+  // assignment, D109); this synchronous helper never trusts them.
+  if (viewer.role !== "DESK") throw new AccessError("NOT_FOUND");
   if (!requested) throw new AccessError("RETAILER_REQUIRED");
   return requested;
+}
+
+/** D109: the shop must be assigned to this salesman (checked in the database every time). */
+export async function assertSalesmanShop(
+  db: { retailer: { findFirst(args: { where: { id: string; salesmanId: string }; select: { id: true } }): Promise<{ id: string } | null> } },
+  viewer: Viewer,
+  retailerId: string,
+): Promise<string> {
+  if (viewer.role !== "SALESMAN") throw new AccessError("NOT_FOUND");
+  const shop = await db.retailer.findFirst({ where: { id: retailerId, salesmanId: viewer.userId }, select: { id: true } });
+  if (!shop) throw new AccessError("NOT_FOUND");
+  return shop.id;
 }
