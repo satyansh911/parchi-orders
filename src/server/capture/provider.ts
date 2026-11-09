@@ -16,7 +16,7 @@ export interface CaptureProvider {
 
 export const CAPTURE_TIMEOUT_MS = 8_000;
 /** D111: reading a photo or listening to a voice note takes longer than text. */
-export const MEDIA_TIMEOUT_MS = 25_000;
+export const MEDIA_TIMEOUT_MS = 40_000;
 export const MAX_OUTPUT_TOKENS = 4_096;
 
 type Generate = (args: Parameters<GoogleGenAI["models"]["generateContent"]>[0]) => Promise<{ text?: string | undefined }>;
