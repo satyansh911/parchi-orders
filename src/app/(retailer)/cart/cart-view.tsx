@@ -90,7 +90,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
       }
       const outcome = response.data;
       if (outcome.outcome === "PLACED") {
-        update(() => resolvePlaced(newRequestId()));
+        update((c) => resolvePlaced(c, newRequestId()));
         setPlaced(outcome);
       } else if (outcome.outcome === "NOT_PLACED") {
         update((c) => resolveNotCreated(c, newRequestId()));

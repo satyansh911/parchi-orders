@@ -354,21 +354,23 @@ model OrderEvent {
 /// The original message and raw model output are kept for traceability (A.10).
 /// An unconfirmed capture never creates an Order (D12).
 model Capture {
-  id          String        @id @default(cuid())
-  retailerId  String
-  retailer    Retailer      @relation(fields: [retailerId], references: [id])
-  createdById String
-  createdBy   User          @relation(fields: [createdById], references: [id])
-  rawText     String
-  model       String?
+  id              String        @id @default(cuid())
+  retailerId      String
+  retailer        Retailer      @relation(fields: [retailerId], references: [id])
+  createdById     String
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  rawText         String
+  /// D96: client request ID; a retry with the same ID returns this capture.
+  clientRequestId String?       @unique
+  model           String?
   /// Untrusted model JSON, stored as received.
-  aiResponse  Json?
-  status      CaptureStatus
+  aiResponse      Json?
+  status          CaptureStatus
   /// NO_KEY | TIMEOUT | INVALID_JSON | API_ERROR
-  failReason  String?
-  latencyMs   Int?
-  createdAt   DateTime      @default(now())
-  confirmedAt DateTime?
+  failReason      String?
+  latencyMs       Int?
+  createdAt       DateTime      @default(now())
+  confirmedAt     DateTime?
 
   lines CaptureLine[]
   order Order?
@@ -386,9 +388,13 @@ model CaptureLine {
   aiSkuId           String?
   aiQty             Int?
   aiUnit            String?
-  /// Model's 0–100 score, then the code-adjusted score (D10).
+  /// Model's 0–100 score, then the code-adjusted score (D10, D97).
   aiScore           Int?
   finalScore        Int?
+  /// What the review screen suggests (may differ from aiSkuId, e.g. an approved alias).
+  suggestedSkuId    String?
+  /// Cases, only when the words state cases explicitly (D3).
+  suggestedCases    Int?
   confidence        Confidence
   alternativeSkuIds String[]
   /// e.g. UNIT_UNCLEAR, OUT_OF_STOCK, UNKNOWN_SKU

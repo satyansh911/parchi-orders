@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_CASES, MAX_LINES, addCase, casesFor, chooseOption, emptyCart, isLocked, mergeLines, parseCart,
+  MAX_CASES, MAX_LINES, addCase, casesFor, chooseOption, emptyCart, hasMergedCapture, isLocked, mergeCaptureLines, mergeLines, parseCart,
   removeCase, removeLine, resolveNotCreated, resolvePlaced, setCases, startSubmission, type CartState,
 } from "./cart-state";
 
@@ -77,11 +77,11 @@ describe("pending submission (D76)", () => {
 
   it("gets a new ID only once resolved: nothing created → same lines, unlocked, new ID", () => {
     const s = resolveNotCreated(pending, "req-2");
-    expect(s).toEqual({ v: 1, requestId: "req-2", lines: [{ skuId: "a", paidCases: 2 }], pending: null });
+    expect(s).toEqual({ v: 1, requestId: "req-2", lines: [{ skuId: "a", paidCases: 2 }], pending: null, mergedCaptureIds: [] });
   });
 
-  it("gets a new ID and an empty cart once an order is confirmed", () => {
-    expect(resolvePlaced("req-3")).toEqual(emptyCart("req-3"));
+  it("gets a new ID and an empty cart once an order is confirmed, keeping the capture ledger (D98)", () => {
+    expect(resolvePlaced({ ...pending, mergedCaptureIds: ["cap-1"] }, "req-3")).toEqual(emptyCart("req-3", ["cap-1"]));
   });
 
   it("won't start a submission for an empty cart", () => {
@@ -94,7 +94,7 @@ describe("parseCart", () => {
 
   it("round-trips a stored cart, including a pending submission", () => {
     const s: CartState = startSubmission(setCases(start(), "a", 2), "q", true, 5);
-    expect(parseCart(JSON.stringify(s), id)).toEqual(s);
+    expect(parseCart(JSON.stringify(s), id)).toEqual({ ...s, mergedCaptureIds: [] });
   });
 
   it("turns missing, corrupt or old-format data into an empty cart", () => {
@@ -106,5 +106,28 @@ describe("parseCart", () => {
   it("drops invalid and duplicate lines from tampered storage", () => {
     const raw = JSON.stringify({ v: 1, requestId: "r", pending: null, lines: [{ skuId: "a", paidCases: 2 }, { skuId: "a", paidCases: 9 }, { skuId: "b", paidCases: 0 }, { skuId: "c", paidCases: 1.5 }, { skuId: 7, paidCases: 1 }, { skuId: "d", paidCases: 1000 }] });
     expect(parseCart(raw, id).lines).toEqual([{ skuId: "a", paidCases: 2 }]);
+  });
+});
+
+describe("capture merge guard (D98)", () => {
+  const lines = [{ skuId: "a", paidCases: 5 }];
+
+  it("adds a capture's lines once; retries, reloads and double taps add nothing more", () => {
+    const once = mergeCaptureLines(start(), "cap-1", lines, "add");
+    expect(once.lines).toEqual(lines);
+    expect(hasMergedCapture(once, "cap-1")).toBe(true);
+    expect(mergeCaptureLines(once, "cap-1", lines, "add")).toBe(once);
+    const reloaded = parseCart(JSON.stringify(once), () => "x");
+    expect(mergeCaptureLines(reloaded, "cap-1", lines, "add").lines).toEqual(lines);
+  });
+
+  it("still blocks a re-merge after the order was placed (ledger survives)", () => {
+    const placed = resolvePlaced(mergeCaptureLines(start(), "cap-1", lines, "add"), "req-2");
+    expect(mergeCaptureLines(placed, "cap-1", lines, "add").lines).toEqual([]);
+  });
+
+  it("a different capture still merges", () => {
+    const s = mergeCaptureLines(mergeCaptureLines(start(), "cap-1", lines, "add"), "cap-2", lines, "add");
+    expect(s.lines).toEqual([{ skuId: "a", paidCases: 10 }]);
   });
 });

@@ -11,9 +11,25 @@ export type CartLine = { skuId: string; paidCases: number; choice?: OfferChoice 
 /** A placement whose outcome isn't known yet (D76): ID and exact payload are kept. */
 export type PendingSubmission = { requestId: string; lines: CartLine[]; quote: string; confirmCreditHold: boolean; startedAt: number };
 
-export type CartState = { v: 1; requestId: string; lines: CartLine[]; pending: PendingSubmission | null };
+/** mergedCaptureIds: captures already added to this cart (D98), kept across orders. */
+export type CartState = { v: 1; requestId: string; lines: CartLine[]; pending: PendingSubmission | null; mergedCaptureIds?: string[] };
 
-export const emptyCart = (requestId: string): CartState => ({ v: 1, requestId, lines: [], pending: null });
+const MAX_LEDGER = 200;
+
+export const emptyCart = (requestId: string, mergedCaptureIds: string[] = []): CartState => ({ v: 1, requestId, lines: [], pending: null, mergedCaptureIds });
+
+export const hasMergedCapture = (s: CartState, captureId: string) => (s.mergedCaptureIds ?? []).includes(captureId);
+
+/**
+ * D98: add a confirmed capture's lines exactly once. The ledger entry is
+ * written in the same storage write as the lines, so a retry, reload or
+ * double tap can never add the same quantities twice.
+ */
+export function mergeCaptureLines(s: CartState, captureId: string, incoming: CartLine[], mode: "replace" | "add"): CartState {
+  if (isLocked(s) || hasMergedCapture(s, captureId)) return s;
+  const merged = mergeLines(s, incoming, mode);
+  return { ...merged, mergedCaptureIds: [...(s.mergedCaptureIds ?? []), captureId].slice(-MAX_LEDGER) };
+}
 
 /** While a submission is pending the cart is locked: it must be resolved first (D76). */
 export const isLocked = (s: CartState) => s.pending !== null;
@@ -66,8 +82,8 @@ export function resolveNotCreated(s: CartState, newRequestId: string): CartState
 }
 
 /** Resolved with an order (new or already placed): empty cart, fresh ID (D76). */
-export function resolvePlaced(newRequestId: string): CartState {
-  return emptyCart(newRequestId);
+export function resolvePlaced(s: CartState, newRequestId: string): CartState {
+  return emptyCart(newRequestId, s.mergedCaptureIds ?? []);
 }
 
 /** Parse stored JSON defensively; anything unexpected becomes an empty cart. */
@@ -81,7 +97,8 @@ export function parseCart(raw: string | null, newRequestId: () => string): CartS
       .slice(0, MAX_LINES);
     const unique = lines.filter((l, i) => lines.findIndex((m) => m.skuId === l.skuId) === i);
     const pending = data.pending && typeof data.pending.requestId === "string" && typeof data.pending.quote === "string" ? data.pending : null;
-    return { v: 1, requestId: data.requestId, lines: unique, pending };
+    const ledger = Array.isArray(data.mergedCaptureIds) ? data.mergedCaptureIds.filter((x): x is string => typeof x === "string").slice(-MAX_LEDGER) : [];
+    return { v: 1, requestId: data.requestId, lines: unique, pending, mergedCaptureIds: ledger };
   } catch {
     return emptyCart(newRequestId());
   }
