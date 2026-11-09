@@ -86,6 +86,6 @@ describe("providerFromEnv (D100)", () => {
   });
 
   it("without a key, returns NO_KEY instead of calling anything", async () => {
-    expect(await providerFromEnv({}).extract(prompt, ctx)).toMatchObject({ ok: false, reason: "NO_KEY", model: "gemini-3.8-flash" });
+    expect(await providerFromEnv({}).extract(prompt, ctx)).toMatchObject({ ok: false, reason: "NO_KEY", model: "gemini-3.5-flash" });
   });
 });

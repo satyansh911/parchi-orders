@@ -68,7 +68,7 @@ export function providerFromEnv(env: Record<string, string | undefined> = proces
     return fakeProvider;
   }
   if (kind !== "gemini") throw new Error(`Unknown AI_CAPTURE_PROVIDER: ${kind}`);
-  const model = env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
+  const model = env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
   if (!env.GEMINI_API_KEY) return noKeyProvider(model);
   const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
   return geminiProvider(model, (args) => client.models.generateContent(args));
