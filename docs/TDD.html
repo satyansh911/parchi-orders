@@ -40,18 +40,19 @@
 <div class="links">
   <div><b>GitHub repository</b> <a href="https://github.com/satyansh911/parchi-orders">https://github.com/satyansh911/parchi-orders</a></div>
   <div><b>Live app</b> <a href="https://parchi-orders.vercel.app">https://parchi-orders.vercel.app</a></div>
-  <div><b>Demo logins</b> Retailer <code>9999900101</code>; Retailer at its credit limit <code>9999900107</code>; Order desk <code>9999900001</code>. The OTP is always <code>123456</code> (mock). See <code>deployment.md</code>.</div>
+  <div><b>Demo logins</b> Retailer <code>9999900101</code>; Retailer at its credit limit <code>9999900107</code>; Order desk <code>9999900001</code>; Salesman <code>9999900202</code>. The OTP is always <code>123456</code> (mock). See <code>deployment.md</code>.</div>
 </div>
 
 <!-- OWN WORDS: rewrite §1 in your own voice before submitting. -->
 <h2>1. Business problem and overview</h2>
 <p>Company A distributes four packaged food and home-care brands to about 1,800 kirana shops. Orders arrive today as notebook entries, WhatsApp texts, photos and voice notes, and six office staff retype them into Tally the next morning. Salesmen can't see stock or schemes at the counter, so lines are cut later. The brief estimates the yearly cost at ₹52.5 lakh, made up of wrong items (₹31.5 lakh), order-entry staff (₹15.6 lakh) and stock-outs found after ordering (₹5.4 lakh).</p>
-<p>I built the <b>core slice</b> end to end:</p>
+<p>I built the <b>core slice</b> end to end, and then every remaining <b>MUST HAVE</b> item:</p>
 <ol>
   <li>A retailer catalogue showing their own prices, GST, stock and schemes.</li>
   <li>A cart priced live by the scheme engine, with order placement and credit holds.</li>
   <li>AI capture of informal Hindi, Hinglish and English text orders. Every line is reviewed by a person.</li>
   <li>An order desk that approves, rejects, releases holds and edits lines, then exports approved orders as a Tally CSV.</li>
+  <li><b>Also:</b> AI capture from a <b>photo of a handwritten list</b> or a <b>Hindi voice note</b>; a <b>salesman mode that works offline</b>; <b>van loading lists</b>; and a <b>dashboard of retailers with no order in 14 days</b>.</li>
 </ol>
 <p>The hard part is the <b>scheme engine</b>: free goods per complete multiple, slab discounts and the best-offer choice. It interacts with stock, credit and GST. It lives in pure, unit-tested functions shared by the cart preview, order placement and desk edits.</p>
 <table>
@@ -63,7 +64,11 @@
   <tr><td>Tally CSV export: batches, duplicate protection, reconciliation, re-download</td><td class="ok">Complete, verified live</td></tr>
   <tr><td>Desk corrections saved as retailer aliases and used by later captures</td><td class="ok">Complete (desk "Save as alias")</td></tr>
   <tr><td>Hindi and English (retailer screens), 360 px layout, installable PWA manifest</td><td class="ok">Complete</td></tr>
-  <tr><td>Salesman offline mode, photo and voice capture, van loading lists, "no order in 14 days" dashboard, desk-side capture</td><td class="def">Deferred (optional depth in the brief)</td></tr>
+  <tr><td>AI capture from a photo of a handwritten list or a Hindi voice note (transcribed, then the same checks and review)</td><td class="ok">Complete, verified live (§11)</td></tr>
+  <tr><td>Salesman mode during visits, working offline: assigned shops only, on-device pricing, outbox that syncs on reconnect</td><td class="ok">Complete, verified live with the network switched off</td></tr>
+  <tr><td>Order desk van loading lists (per van: cases per item incl. free goods, drop list per shop)</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>Dashboard of retailers with no order in 14 days (desk: all; salesman: his shops)</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>AI capture from inside the salesman app; desk-side capture on a retailer's behalf</td><td class="def">Deferred</td></tr>
 </table>
 
 <h2>2. Architecture and technology choices</h2>
@@ -82,7 +87,7 @@
 <h3>Architecture diagram</h3>
 <svg class="diagram" viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="11">
   <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b5b61"/></marker></defs>
-  <rect x="10" y="20" width="150" height="70" rx="8" fill="#e6f4f2" stroke="#0f766e"/><text x="85" y="45" text-anchor="middle" font-weight="600">Retailer phone</text><text x="85" y="62" text-anchor="middle">PWA, Hindi/English</text><text x="85" y="77" text-anchor="middle">cart in localStorage</text>
+  <rect x="10" y="20" width="150" height="70" rx="8" fill="#e6f4f2" stroke="#0f766e"/><text x="85" y="40" text-anchor="middle" font-weight="600">Retailer / salesman</text><text x="85" y="56" text-anchor="middle">PWA, Hindi/English</text><text x="85" y="71" text-anchor="middle">salesman: offline pack,</text><text x="85" y="85" text-anchor="middle">outbox, service worker</text>
   <rect x="10" y="130" width="150" height="60" rx="8" fill="#e6f4f2" stroke="#0f766e"/><text x="85" y="155" text-anchor="middle" font-weight="600">Order desk</text><text x="85" y="172" text-anchor="middle">browser (desktop)</text>
   <rect x="200" y="10" width="330" height="230" rx="10" fill="#fff" stroke="#1c1c1e"/><text x="365" y="30" text-anchor="middle" font-weight="700">Vercel · Next.js 16 · region sin1</text>
   <rect x="215" y="42" width="140" height="44" rx="6" fill="#f5f5f4" stroke="#e2e2e0"/><text x="285" y="60" text-anchor="middle" font-weight="600">proxy.ts</text><text x="285" y="76" text-anchor="middle">cookie redirect, no-store</text>
@@ -102,7 +107,7 @@
 </svg>
 
 <h2>3. Database schema and important entities</h2>
-<p>There are 16 models, all money in integer <b>paise</b> and all rates in <b>basis points</b>. Hand-written migrations add <code>CHECK</code> constraints, for example <code>0 ≤ reservedCases ≤ stockCases</code>, and a retailer user must have a <code>retailerId</code>.</p>
+<p>There are 17 models, all money in integer <b>paise</b> and all rates in <b>basis points</b>. Hand-written migrations add <code>CHECK</code> constraints, for example <code>0 ≤ reservedCases ≤ stockCases</code>, and a retailer user must have a <code>retailerId</code>.</p>
 <table>
   <tr><th>Entity</th><th>Key fields and purpose</th></tr>
   <tr><td>PriceTier, Retailer, User, Session</td><td>Tier discount in bps. Retailer credit limit and outstanding (mocked ledger). User phone, role (RETAILER/DESK) and locale. Session stores only the SHA-256 of the token, with an expiry.</td></tr>
@@ -110,13 +115,15 @@
   <tr><td>Order, OrderLine</td><td>Unique <code>clientRequestId</code> (idempotency), status, optimistic <code>version</code>, frozen totals, credit snapshot, <code>awaitingRetailerAck</code>, <code>captureId</code> and <code>exportBatchId</code>. Lines freeze the price, applied scheme, free cases, discount, GST and the other eligible offer.</td></tr>
   <tr><td>OrderEvent</td><td>Append-only audit: PLACED, STATUS_CHANGED, LINE_EDITED/REMOVED, ACK_REQUESTED/ACCEPTED, CANCEL_REQUESTED, NOTE, EXPORTED. Records actor (null means system), from/to status, reason and a JSON before/after payload.</td></tr>
   <tr><td>Capture, CaptureLine, Alias</td><td>Original message, raw model JSON, status and fail reason, latency. Per line: original words, the model's pick, the server's suggestion, score, confidence, flags, alternatives, and the person's resolution. Alias is (retailer, normalised phrase) → SKU.</td></tr>
+  <tr><td>Van; Retailer.salesmanId and vanId; Order.takenAt; Capture.inputType</td><td><b>Van</b> = a delivery route; every shop has one van and one assigned salesman (D109, D110). <code>takenAt</code> is when the salesman took the order on his phone, possibly offline. <code>inputType</code> is TEXT, PHOTO or VOICE (D111).</td></tr>
   <tr><td>ExportBatch, RateLimitHit</td><td>Batch number, order count, total and the stored CSV, so a re-download is byte-identical. Rate limits use fixed windows with atomic upsert counters.</td></tr>
 </table>
 <p>Seed data:</p>
 <ul>
   <li>the brief's 3 SKUs exactly as given, plus 35 fictional SKUs across 4 brands;</li>
   <li>20 fictional retailers with tiers, credit and outstanding balances, and 90 historical orders priced by the domain engine;</li>
-  <li>a desk user.</li>
+  <li>a desk user;</li>
+  <li>3 vans and 3 salesmen, each covering one route.</li>
 </ul>
 <p>Note: the historical median order is ₹11,566, against the ₹5,000 the brief assumes, because the brief's case prices run from ₹777 to ₹5,460. I did not manipulate the totals.</p>
 
@@ -125,6 +132,7 @@
   <li><b>Login:</b> mock OTP. The phone number plus code <code>123456</code> works only when <code>AUTH_DEMO_OTP</code> is exactly <code>true</code>; otherwise every login is refused. Requests are rate-limited per phone and per IP, and the response is the same whether or not the phone exists.</li>
   <li><b>Sessions:</b> a random 32-byte token in an HTTP-only, Secure, SameSite=Lax <code>__Host-</code> cookie. Only its SHA-256 is stored. Role and retailer are re-read from the database on every request, so a demotion or logout applies immediately. Logout is POST-only and revokes only the current session.</li>
   <li><b>Every server action</b> goes through one wrapper: <code>action({ role, input, handler })</code>. It resolves the viewer from the session, checks the role, and validates input with a <i>strict</i> zod schema, so <code>retailerId</code> or <code>role</code> in the input is rejected. A registry test fails the build if any action bypasses the wrapper.</li>
+  <li><b>Salesman (D109):</b> every salesman call re-checks <i>in the database</i> that the shop is assigned to him. The shared helper that resolves a retailer from the request refuses salesmen outright, so this check can't be bypassed by accident. Another salesman's shop is NOT_FOUND.</li>
   <li><b>Ownership:</b> retailer reads are always scoped by <code>retailerId</code> from the session (<code>ownedBy(viewer)</code>). Another retailer's order or capture is <i>NOT_FOUND</i>, never "forbidden". Desk-only reads refuse non-desk viewers. The CSV route returns 404 to retailers, which is verified live.</li>
   <li><b>No private data in shared caches:</b> signed-in pages are sent with <code>Cache-Control: private, no-store</code> (verified live), and the prerendered shell holds no private data.</li>
 </ul>
@@ -185,6 +193,15 @@
   <li><b>The capture is stored:</b> original text, raw model output and the reviewed lines. <b>No order is created and no stock is reserved.</b></li>
   <li><b>The retailer reviews and resolves every line</b> (accept, correct or remove), then confirms. Confirmation is idempotent: a retry or double tap returns the stored result. A device ledger guarantees the lines merge into the cart <b>once</b>. The order is then placed through the normal cart (signed quote, credit, reservation) and linked to the capture.</li>
 </ol>
+<p><b>Photos and voice notes (D111).</b>
+<ul>
+  <li><b>On the phone:</b> a photo is shrunk to 1,600 px JPEG (a 4 MB camera photo becomes about 200–400 KB on 3G). A voice note is recorded in the browser (up to 60 s) or picked from a file.</li>
+  <li><b>On the server, before the model:</b> the file must be on a type allow-list, at most 2 MB, and its own bytes must really be that type, so a renamed HTML or executable is refused.</li>
+  <li><b>One model call:</b> Gemini first <b>writes out</b> the photo or voice note as text, then extracts lines <i>from that text</i>.</li>
+  <li><b>Same pipeline as typed text:</b> the written-out text becomes the "original words", and the lines go through the same validation, confidence rules, review and confirmation.</li>
+  <li><b>What is stored:</b> only the written-out text, never the photo or audio. The review screen labels it "The photo says" or "The voice note says".</li>
+  <li><b>Time limit:</b> 40 s, because media is slower than text.</li>
+</ul></p>
 <p><b>Failure is safe:</b> no key, timeout, model busy (429/503), API error, invalid or empty output all become a FAILED capture with the message kept. The retailer sees <b>"Couldn't read this message"</b> with <b>Try again</b> and <b>Add items myself</b>. It never crashes.</p>
 
 <h2>10. Structured output, catalogue grounding, confidence and correction</h2>
@@ -226,7 +243,23 @@
         <li>Model latency was 3.0 s, and the whole round trip 4.4 s.</li>
       </ul>
     </li>
-    <li><b>Not done:</b> the 12-message real-model accuracy evaluation (D99) was not run. This single live check is not an accuracy figure.</li>
+    <li><b>Live photo</b> of a handwritten list, using a rendered handwriting font:
+      <ul>
+        <li>Transcribed exactly, including the heading and signature lines, which produced no items.</li>
+        <li><b>4/4 items correct:</b> SKU-BS-075 × 5, SKU-DT-1KG × 2, SKU-HL-100 × 3, and SKU-TE-250 × 1 (flagged out of stock).</li>
+        <li>Round trip 5.5 s.</li>
+        <li>"Biscuit chhota" and "haldi" came out Low confidence (another product equally supported; weak glossary match). The person must choose, as designed.</li>
+      </ul>
+    </li>
+    <li><b>Live Hindi voice note</b> (macOS Hindi speech synthesis: "भैया, तीन पेटी डिटर्जेंट पाउडर एक किलो, और दो पेटी चाय पत्ती पाँच सौ ग्राम भेज देना"):
+      <ul>
+        <li>Transcribed exactly, in Devanagari with digits.</li>
+        <li><b>2/2 correct:</b> SKU-DT-1KG × 3 and SKU-TE-500 × 2.</li>
+        <li>Round trip 11 s.</li>
+      </ul>
+    </li>
+    <li><b>Reliability:</b> the first live photo and voice attempts failed safely. Gemini answered "busy" after 16 s on the photo, and the voice note took more than 25 s. The media time limit is now 40 s. Upstream capacity is the main risk.</li>
+    <li><b>Not done:</b> the 12-message real-model accuracy evaluation (D99) was not run. These live checks are not an accuracy figure. The voice test used synthesized speech, not a real shopkeeper's voice in a noisy shop.</li>
   </ul>
 </div>
 
@@ -254,6 +287,45 @@
   <li><b>Every transition</b> goes through the one status machine (<code>src/domain/orders/status-machine.ts</code>). Invalid ones are refused, and stale versions get CONFLICT.</li>
 </ul>
 <p class="meta">Not built: changing a line's SKU (the desk rejects and the retailer re-orders); REVIEW_REQUIRED orders. Capture lines must all be resolved before the cart (D92), so placement never creates REVIEW_REQUIRED; the desk handles it if present.</p>
+
+<h3>Van loading lists and inactive retailers</h3>
+<ul>
+  <li><b>Van loading (D110).</b>
+    <ul>
+      <li><b>Routes:</b> each shop's area maps to one of 3 seeded van routes.</li>
+      <li><b>Which orders:</b> for a chosen IST date, orders APPROVED or EXPORTED that day. Exporting to Tally doesn't stop an order shipping.</li>
+      <li><b>What each van shows:</b> total cases per item to load (paid + free, since free goods ship too), and a drop list per shop grouped by area, with order numbers and values.</li>
+      <li>The page is printable. Dispatch and delivery tracking are out of scope.</li>
+    </ul>
+  </li>
+  <li><b>No order in 14 days (D112):</b> retailers whose last non-cancelled order is more than 14 whole days old, or who never ordered. Never-ordered shops come first, then the longest gap. Each row shows phone (tap to call), area, salesman and outstanding. The desk sees all shops; a salesman sees and filters his own in the salesman app.</li>
+</ul>
+
+<h2>12b. Salesman mode, working offline (D108, D109, D113)</h2>
+<ol>
+  <li><b>Pack:</b> while online, the phone downloads a <b>pack</b> containing the catalogue with schemes and available stock, plus <i>his assigned shops only</i> with tier, credit position and last order date.
+    <ul>
+      <li>It is stored in localStorage under his user.</li>
+      <li>A service worker, registered only by the salesman app, keeps the <code>/salesman</code> page and its hashed scripts. With no signal the app still opens.</li>
+    </ul>
+  </li>
+  <li><b>Pricing on the phone:</b> it runs <b>the same pure domain engine</b> as the server (tier case price, best offer, free goods that must fit in stock, GST, credit decision).
+    <ul>
+      <li>Stock and credit already promised by unsent orders in the outbox are subtracted, so two offline orders can't both take the last cases or the same credit.</li>
+      <li>An over-limit order needs the salesman's explicit "I told the shop" tick.</li>
+    </ul>
+  </li>
+  <li><b>Saving:</b> the order goes to an <b>outbox</b> with a client request ID and the exact <i>expectation</i>: lines, free cases, line totals, total, and whether it goes on hold.</li>
+  <li><b>Sync:</b> when signal returns (the <code>online</code> event, every 30 s, or <b>Send now</b>), each order goes through <b>the normal placement transaction</b>: assignment check, retailer lock, re-pricing, credit and atomic reservation. The phone's expectation is compared with the server's instead of a signed quote.
+    <ul>
+      <li>If they match exactly, the order is placed with source SALESMAN, the salesman as placer, and <code>takenAt</code>.</li>
+      <li>If anything differs (price, scheme, stock or credit outcome), <b>nothing is placed</b>. He sees the new total and taps <b>Accept new total and send</b> (same request ID), or edits or discards.</li>
+      <li>A lost response is safe: resending the same ID returns the same order.</li>
+    </ul>
+  </li>
+  <li><b>Tests:</b> an integration test proves the phone's pricing and the server's agree exactly (placed), and that a changed price is refused. A Playwright test switches the browser offline, takes an order and saves it, then switches back online and sees it sent. The same was verified on the live app.</li>
+</ol>
+<p class="meta">Trade-offs: the salesman's shops, prices and credit are stored on his phone; that is necessary for offline use and limited to his shops. The pack can go stale, which is exactly why the server re-checks on sync. AI capture isn't available inside the salesman app yet.</p>
 
 <h2>13. Tally CSV export format and assumptions</h2>
 <p>The brief says only "Tally export" and specifies no format, so I defined and documented a contract. It is <b>not</b> a native Tally XML import, and <b>it has not been verified against a real Tally installation</b>. An accountant would map the columns once in Tally's import or a TDL utility.</p>
@@ -296,6 +368,15 @@
   <figure><img src="screenshots/06c-capture-review.png" alt="Capture review"><figcaption>Review: original words, confidence chip, two alternatives, case stepper; every line must be checked.</figcaption></figure>
   <figure><img src="screenshots/06d-capture-failed.png" alt="Capture failure"><figcaption>AI unavailable: message kept; try again or add items manually (live, from a 3.8 overload).</figcaption></figure>
 </div>
+<div class="shots">
+  <figure><img src="screenshots/10-photo-review.png" alt="Photo review"><figcaption>Photo of a handwritten list: transcript shown as "the photo says", then the usual review (live).</figcaption></figure>
+  <figure><img src="screenshots/11-voice-review.png" alt="Voice review"><figcaption>Hindi voice note transcribed in Devanagari, then reviewed (live).</figcaption></figure>
+  <figure><img src="screenshots/13-salesman-offline-order.png" alt="Salesman offline"><figcaption>Salesman, no signal: shop's tier price, 3% slab, GST total computed on the phone (live).</figcaption></figure>
+</div>
+<div class="two">
+  <figure class="wide"><img src="screenshots/15-van-loading.png" alt="Van loading"><figcaption>Van loading list: cases per item incl. free goods, drop list per shop.</figcaption></figure>
+  <figure class="wide"><img src="screenshots/16-inactive.png" alt="Inactive"><figcaption>Retailers with no order in 14 days, with call links.</figcaption></figure>
+</div>
 <div class="two">
   <figure class="wide"><img src="screenshots/07-desk-queue.png" alt="Desk queue"><figcaption>Desk queue with status filters and counts.</figcaption></figure>
   <figure class="wide"><img src="screenshots/09-desk-export.png" alt="Tally export"><figcaption>Tally export: batch created, history with re-download.</figcaption></figure>
@@ -316,10 +397,10 @@
 <h2>16. Testing strategy and actual results</h2>
 <table>
   <tr><th>Layer</th><th>What</th><th>Result (9 Nov 2026)</th></tr>
-  <tr><td>Unit (Vitest, no database)</td><td>Money, pricing, schemes, GST, stock options, credit, status machine, capture post-processing (mocked AI), Tally CSV, cart state, prompt and provider, i18n</td><td><b>436/436 passed</b> (40 files)</td></tr>
-  <tr><td>Integration (Vitest, Neon test branch)</td><td>Auth and sessions, security isolation, catalogue, pricing, placement (idempotency, races, credit), reservation, retailer actions, capture (idempotency, failures, confirm, alias), desk (decisions, concurrency, edits, ack), export (duplicates, concurrency, reconciliation)</td><td><b>139/139 passed</b> (14 files, full run); the capture file re-run with the new alias test: 16/16</td></tr>
-  <tr><td>E2E (Playwright, 360 px, production build against the test branch)</td><td>Hindi login, search, add, nudge, place, history, order again; credit-hold confirmation; language persistence; capture → review → cart once; capture failure path; desk approve → export once → CSV download, with a 404 for retailers</td><td><b>9/9 passed</b> (full run on a fresh test-branch seed)</td></tr>
-  <tr><td>Live smoke (Playwright against the Vercel URL)</td><td>Retailer order → desk approval → export → CSV download, retailer 404 on the CSV, AI capture</td><td>Passed. AI capture: the brief&#39;s message gave 3/3 correct lines with <code>gemini-3.5-flash</code> (§11). Earlier runs on 3.8 showed the safe manual path.</td></tr>
+  <tr><td>Unit (Vitest, no database)</td><td>Money, pricing, schemes, GST, stock options, credit, status machine, capture post-processing (mocked AI), Tally CSV, cart state, prompt and provider, i18n, salesman offline pricing and outbox state, media file checks, van loading lists, inactivity</td><td><b>462/462 passed</b> (46 files)</td></tr>
+  <tr><td>Integration (Vitest, Neon test branch)</td><td>Auth and sessions, security isolation, catalogue, pricing, placement (idempotency, races, credit), reservation, retailer actions, capture (idempotency, failures, confirm, alias), desk (decisions, concurrency, edits, ack), export (duplicates, concurrency, reconciliation); photo and voice capture; salesman pack scoping, phone–server pricing parity, changed-price refusal, access and idempotency; inactive and loading-list scoping</td><td><b>150/150 passed</b> (15 files)</td></tr>
+  <tr><td>E2E (Playwright, 360 px, production build against the test branch)</td><td>Hindi login, search, add, nudge, place, history, order again; credit-hold confirmation; language persistence; capture → review → cart once; capture failure path; desk approve → export once → CSV download, with a 404 for retailers; photo order; <b>salesman order taken with the network off, sent on reconnect</b>; van loading list and inactive dashboard</td><td><b>11/11 passed</b> (full run on a fresh test-branch seed, incl. the offline salesman test)</td></tr>
+  <tr><td>Live smoke (Playwright against the Vercel URL)</td><td>Retailer order → desk approval → export → CSV download, retailer 404 on the CSV; AI capture from text, photo and Hindi voice; salesman offline order synced on reconnect; van loading; inactive dashboard</td><td>Passed. AI capture: the brief&#39;s message gave 3/3 correct lines with <code>gemini-3.5-flash</code> (§11). Earlier runs on 3.8 showed the safe manual path.</td></tr>
 </table>
 <p>Tests use a <b>guarded</b> Neon test branch. The guard refuses to run unless <code>TEST_DATABASE_URL</code> differs from the production URLs, its host isn't protected, and a marker table exists, so the production database is never reset or seeded by tests.</p>
 
@@ -358,19 +439,20 @@
   <tr><td>Real-model accuracy evaluation</td><td class="def">Not run</td><td>One live check passed (3/3). A 12-message eval is next. The model moved from 3.8 to 3.5 Flash because of upstream overload (D107).</td></tr>
   <tr><td>Desk SKU swap on a line; REVIEW_REQUIRED orders from partial captures (D27)</td><td class="def">Deferred</td><td>Retailer resolves every capture line instead (D92). The desk can reject and ask the retailer to re-order.</td></tr>
   <tr><td>Retailer editing a pending order (D23)</td><td class="def">Deferred</td><td>Retailer can cancel and use Order again.</td></tr>
-  <tr><td>Desk-side capture on behalf of a retailer</td><td class="def">Deferred</td><td>Aliases are saved from retailer captures.</td></tr>
-  <tr><td>Salesman offline mode, photo and voice capture, van loading lists, 14-day inactivity dashboard</td><td class="def">Deferred</td><td>Optional depth in the brief.</td></tr>
+  <tr><td>Desk-side capture on a retailer's behalf; AI capture inside the salesman app</td><td class="def">Deferred</td><td>Aliases are saved from retailer captures; salesmen take orders from the catalogue.</td></tr>
+  <tr><td>Salesman offline data on the phone</td><td class="part">By design (D113)</td><td>His shops' prices and credit live in localStorage, which offline use requires. Next step: encrypt, and clear on logout.</td></tr>
+  <tr><td>Photo and voice reliability</td><td class="part">Upstream</td><td>Media calls are slower and hit Gemini overload more often. They fail safely to manual entry, and the time limit is 40 s.</td></tr>
   <tr><td>Desk screens in English only</td><td class="part">By decision</td><td>D11/D106. Retailer screens are bilingual.</td></tr>
   <tr><td>Tally import</td><td class="part">Assumed format</td><td>Not tested against real Tally. Native XML or TDL is next.</td></tr>
   <tr><td>Protected pages return HTTP 200 with a login redirect or not-found content</td><td class="part">Known (D73)</td><td>Side effect of partial prerendering; no private data is ever sent.</td></tr>
-  <tr><td>Service worker / offline cache</td><td class="def">Not implemented</td><td>The manifest and icons make the app installable; no offline caching (also avoids storing private data on device).</td></tr>
+  <tr><td>Offline for retailers</td><td class="def">Not implemented</td><td>Only the salesman app works offline (D113). Retailer and desk pages are never cached.</td></tr>
 </table>
 <p><b>Next steps:</b></p>
 <ol>
   <li>Run the 12-message evaluation, and move to provisioned quota or a fallback model chain for reliability.</li>
   <li>Validate the CSV with the client's accountant in Tally.</li>
-  <li>Add the salesman role and an offline outbox.</li>
-  <li>Add photo and voice capture through the same post-processing.</li>
+  <li>Salesman: AI capture inside the app, encrypted on-device data, background sync.</li>
+  <li>Run the photo and voice evaluation on real handwritten parchis and real shop voice notes.</li>
   <li>Add a real SMS OTP provider.</li>
   <li>Run a load test at 10× peak.</li>
 </ol>
