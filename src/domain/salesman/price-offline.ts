@@ -36,8 +36,10 @@ export function priceOfflineOrder(skus: readonly PackSku[], shop: PackShop, cart
     if (result.status === "OK") return { skuId, paidCases, status: "OK", line: result.line };
     if (result.status === "OUT_OF_STOCK") return { skuId, paidCases, status: "OUT_OF_STOCK" };
     if (result.status === "STOCK_SHORT") {
-      const keepFree = result.options.find((o) => o.choice === "BEST");
-      return { skuId, paidCases, status: "STOCK_SHORT", maxPaidCases: keepFree?.line.paidCases ?? 0 };
+      // Offline the salesman always gets the best offer; find the most cases that still fit with it.
+      let max = Math.min(paidCases, available) - 1;
+      while (max > 0 && evaluateLineStock({ sku: packSkuToCatalogue(sku), requestedCases: max, availableCases: available, choice: "BEST" }, ctx).status !== "OK") max--;
+      return { skuId, paidCases, status: "STOCK_SHORT", maxPaidCases: Math.max(0, max) };
     }
     return { skuId, paidCases, status: "UNKNOWN" };
   });
