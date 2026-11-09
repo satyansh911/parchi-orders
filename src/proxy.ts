@@ -3,9 +3,17 @@ import { SESSION_COOKIE_NAMES } from "@/server/auth/cookie-config";
 
 // Optimistic redirect only (D64): no session cookie → login. It never looks
 // at the database; every page and action still checks the session itself.
+// Signed-in pages carry prices, credit and orders, so they are never stored
+// by browsers or shared caches (D69.10).
+
+export const PRIVATE_CACHE_CONTROL = "private, no-store, max-age=0";
 
 export function proxy(request: NextRequest) {
-  if (SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name))) return NextResponse.next();
+  if (SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name))) {
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
+    return response;
+  }
   const login = new URL("/login", request.url);
   login.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
   return NextResponse.redirect(login);
