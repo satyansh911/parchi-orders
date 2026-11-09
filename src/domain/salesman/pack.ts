@@ -6,7 +6,8 @@ import type { CreditPosition } from "../credit/credit";
 import type { CatalogueSku } from "../pricing/price-line";
 import type { Scheme } from "../schemes/types";
 
-type JsonScheme = Omit<Scheme, "startsAt" | "endsAt"> & { startsAt: string | null; endsAt: string | null };
+type Jsonify<S> = S extends Scheme ? Omit<S, "startsAt" | "endsAt"> & { startsAt: string | null; endsAt: string | null } : never;
+export type JsonScheme = Jsonify<Scheme>;
 export type PackSku = Omit<CatalogueSku, "schemes"> & {
   schemes: JsonScheme[];
   packSize: string;

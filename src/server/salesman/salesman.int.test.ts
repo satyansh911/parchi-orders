@@ -24,7 +24,7 @@ let mine: Awaited<ReturnType<typeof makeRetailer>>;
 let notMine: Awaited<ReturnType<typeof makeRetailer>>;
 let biscuit: string;
 
-const viewer = (u: { id: string; name: string }, role: "SALESMAN" | "DESK"): Viewer => ({ userId: u.id, sessionId: "s", name: u.name, role, retailerId: null });
+const viewer = (u: { id: string; name: string }, role: "SALESMAN" | "DESK"): Viewer => ({ userId: u.id, sessionId: "s", name: u.name, role, retailerId: null, locale: "EN" });
 
 beforeEach(async () => {
   await resetTestDatabase(db);
