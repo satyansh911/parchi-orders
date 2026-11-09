@@ -70,3 +70,18 @@ export async function addNoteForDesk(db: PrismaClient, viewer: RetailerActor, or
   await db.orderEvent.create({ data: { orderId, actorId: viewer.userId, type: "NOTE", reason: note.trim(), createdAt: now } });
   return { sent: true as const };
 }
+
+/** D32: the retailer accepts desk changes that raised the total. Exactly once. */
+export async function acceptChanges(db: PrismaClient, viewer: RetailerActor, orderId: string, now: Date) {
+  return db.$transaction(async (tx) => {
+    const order = await tx.order.findFirst({ where: { id: orderId, retailerId: viewer.retailerId }, select: { id: true, awaitingRetailerAck: true, status: true } });
+    if (!order) throw new AccessError("NOT_FOUND");
+    const updated = await tx.order.updateMany({
+      where: { id: orderId, retailerId: viewer.retailerId, awaitingRetailerAck: true, status: { in: ["PENDING_REVIEW", "CREDIT_HOLD", "REVIEW_REQUIRED"] } },
+      data: { awaitingRetailerAck: false, ackAcceptedAt: now, version: { increment: 1 } },
+    });
+    if (updated.count === 0) return { accepted: false };
+    await tx.orderEvent.create({ data: { orderId, actorId: viewer.userId, type: "ACK_ACCEPTED", createdAt: now } });
+    return { accepted: true };
+  });
+}
