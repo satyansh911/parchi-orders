@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parchi Orders: Technical Design Document</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  :root { --ink:#1c1c1e; --muted:#5b5b61; --line:#e2e2e0; --accent:#0f766e; --soft:#e6f4f2; --warn:#b45309; --warnsoft:#fdf3e4; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 4pt; }
+  h2 { font-size: 13.5pt; margin: 18pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5px solid var(--accent); break-after: avoid; }
+  h3 { font-size: 11pt; margin: 10pt 0 4pt; break-after: avoid; }
+  p { margin: 4pt 0; }
+  ul, ol { margin: 4pt 0; padding-left: 16pt; }
+  li { margin: 1.5pt 0; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.6pt; background: #f5f5f4; padding: 0 2pt; border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 5pt 0; font-size: 8.8pt; break-inside: auto; }
+  th, td { border: 1px solid var(--line); padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; }
+  tr { break-inside: avoid; }
+  .meta { color: var(--muted); }
+  .links { background: var(--soft); border-radius: 6px; padding: 8pt 10pt; margin: 8pt 0; }
+  .links b { display: inline-block; min-width: 90pt; }
+  .note { background: var(--warnsoft); border-left: 3px solid var(--warn); padding: 5pt 8pt; margin: 6pt 0; }
+  .ok { color: #15803d; font-weight: 600; } .part { color: var(--warn); font-weight: 600; } .def { color: var(--muted); font-weight: 600; }
+  .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; margin: 6pt 0; }
+  .shots figure { margin: 0; break-inside: avoid; }
+  .shots img { width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+  .wide img { width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+  figcaption { font-size: 8.2pt; color: var(--muted); margin-top: 2pt; }
+  .diagram { width: 100%; margin: 6pt 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+  .pb { break-before: page; }
+</style>
+</head>
+<body>
+
+<h1>Parchi Orders: Technical Design Document</h1>
+<p class="meta">Distributor ordering app for Company A, Jabalpur · Software Engineering Intern take-home · Satyansh Singh · 9 November 2026</p>
+<div class="links">
+  <div><b>GitHub repository</b> <a href="https://github.com/satyansh911/parchi-orders">https://github.com/satyansh911/parchi-orders</a></div>
+  <div><b>Live app</b> <a href="https://parchi-orders.vercel.app">https://parchi-orders.vercel.app</a></div>
+  <div><b>Demo logins</b> Retailer <code>9999900101</code>; Retailer at its credit limit <code>9999900107</code>; Order desk <code>9999900001</code>. The OTP is always <code>123456</code> (mock). See <code>deployment.md</code>.</div>
+</div>
+
+<!-- OWN WORDS: rewrite §1 in your own voice before submitting. -->
+<h2>1. Business problem and overview</h2>
+<p>Company A distributes four packaged food and home-care brands to about 1,800 kirana shops. Orders arrive today as notebook entries, WhatsApp texts, photos and voice notes, and six office staff retype them into Tally the next morning. Salesmen can't see stock or schemes at the counter, so lines are cut later. The brief estimates the yearly cost at ₹52.5 lakh, made up of wrong items (₹31.5 lakh), order-entry staff (₹15.6 lakh) and stock-outs found after ordering (₹5.4 lakh).</p>
+<p>I built the <b>core slice</b> end to end:</p>
+<ol>
+  <li>A retailer catalogue showing their own prices, GST, stock and schemes.</li>
+  <li>A cart priced live by the scheme engine, with order placement and credit holds.</li>
+  <li>AI capture of informal Hindi, Hinglish and English text orders. Every line is reviewed by a person.</li>
+  <li>An order desk that approves, rejects, releases holds and edits lines, then exports approved orders as a Tally CSV.</li>
+</ol>
+<p>The hard part is the <b>scheme engine</b>: free goods per complete multiple, slab discounts and the best-offer choice. It interacts with stock, credit and GST. It lives in pure, unit-tested functions shared by the cart preview, order placement and desk edits.</p>
+<table>
+  <tr><th>Scope</th><th>Status</th></tr>
+  <tr><td>Retailer: OTP login (mock), catalogue, prices per tier, GST label, stock badge, scheme badges, search and categories</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>Cart with live scheme preview, free-goods nudge, credit indicator, place order, my orders, repeat order, cancel or request cancellation</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>AI capture from text: review screen, confidence, two alternatives, unit and pack questions, correction, confirm to cart, manual fallback</td><td class="ok">Complete, verified live (§11)</td></tr>
+  <tr><td>Order desk: queue and filters, detail, approve, reject, release hold, cancel approved, line edit with repricing, retailer acknowledgement, audit trail</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>Tally CSV export: batches, duplicate protection, reconciliation, re-download</td><td class="ok">Complete, verified live</td></tr>
+  <tr><td>Desk corrections saved as retailer aliases and used by later captures</td><td class="ok">Complete (desk "Save as alias")</td></tr>
+  <tr><td>Hindi and English (retailer screens), 360 px layout, installable PWA manifest</td><td class="ok">Complete</td></tr>
+  <tr><td>Salesman offline mode, photo and voice capture, van loading lists, "no order in 14 days" dashboard, desk-side capture</td><td class="def">Deferred (optional depth in the brief)</td></tr>
+</table>
+
+<h2>2. Architecture and technology choices</h2>
+<table>
+  <tr><th>Choice</th><th>Why</th></tr>
+  <tr><td><b>Next.js 16 (App Router), TypeScript strict, React Server Components, server actions</b></td><td>One deployable for retailer, desk and API. The server renders pages so phones download little JS (140–150 KB measured). Server actions give typed RPC with no REST layer to secure twice.</td></tr>
+  <tr><td><b>Partial prerendering</b> (<code>cacheComponents</code>)</td><td>A static shell (header, layout) is sent instantly on slow 3G, and private data streams behind <code>&lt;Suspense&gt;</code> after the session check. The shell holds nothing private (D73).</td></tr>
+  <tr><td><b>PostgreSQL on Neon (Singapore) + Prisma 7</b></td><td>Relational integrity, row locks and conditional updates for stock, credit and exports. Singapore cut the measured query round trip from 326 ms (US) to 81 ms. Prisma gives typed queries; critical locks use raw SQL <code>FOR UPDATE</code>.</td></tr>
+  <tr><td><b>Vercel, region <code>sin1</code></b></td><td>Functions run next to the database. Verified by the <code>x-vercel-id: bom1::sin1::…</code> header (Mumbai edge, Singapore function).</td></tr>
+  <tr><td><b>Pure domain layer (<code>src/domain</code>)</b></td><td>Money, pricing, schemes, GST, stock options, credit, the order status machine, capture post-processing and the Tally CSV are plain functions with no I/O. A lint rule forbids Prisma or Next imports there. The same functions price the cart, the order and desk edits.</td></tr>
+  <tr><td><b>zod</b> on every input; <b>Vitest</b> + <b>Playwright</b></td><td>Strict input validation (unknown keys rejected), unit tests without a database, integration tests on a guarded Neon test branch, and E2E at 360 px.</td></tr>
+  <tr><td><b>Gemini via <code>@google/genai</code></b> (pinned 2.32.0)</td><td>One structured-output call per message. Everything after it is deterministic code, and a person confirms every line.</td></tr>
+  <tr><td>Tailwind with our own tokens; inline SVG pack illustrations</td><td>A restrained palette and large type. Images cost about 1–2 KB each with no image requests.</td></tr>
+</table>
+
+<h3>Architecture diagram</h3>
+<svg class="diagram" viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="11">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b5b61"/></marker></defs>
+  <rect x="10" y="20" width="150" height="70" rx="8" fill="#e6f4f2" stroke="#0f766e"/><text x="85" y="45" text-anchor="middle" font-weight="600">Retailer phone</text><text x="85" y="62" text-anchor="middle">PWA, Hindi/English</text><text x="85" y="77" text-anchor="middle">cart in localStorage</text>
+  <rect x="10" y="130" width="150" height="60" rx="8" fill="#e6f4f2" stroke="#0f766e"/><text x="85" y="155" text-anchor="middle" font-weight="600">Order desk</text><text x="85" y="172" text-anchor="middle">browser (desktop)</text>
+  <rect x="200" y="10" width="330" height="230" rx="10" fill="#fff" stroke="#1c1c1e"/><text x="365" y="30" text-anchor="middle" font-weight="700">Vercel · Next.js 16 · region sin1</text>
+  <rect x="215" y="42" width="140" height="44" rx="6" fill="#f5f5f4" stroke="#e2e2e0"/><text x="285" y="60" text-anchor="middle" font-weight="600">proxy.ts</text><text x="285" y="76" text-anchor="middle">cookie redirect, no-store</text>
+  <rect x="375" y="42" width="140" height="44" rx="6" fill="#f5f5f4" stroke="#e2e2e0"/><text x="445" y="60" text-anchor="middle" font-weight="600">Pages (RSC + PPR)</text><text x="445" y="76" text-anchor="middle">session → scoped reads</text>
+  <rect x="215" y="98" width="300" height="44" rx="6" fill="#f5f5f4" stroke="#e2e2e0"/><text x="365" y="116" text-anchor="middle" font-weight="600">Server actions via action({ role, input: zod, handler })</text><text x="365" y="132" text-anchor="middle">session from DB · role · ownership · strict input</text>
+  <rect x="215" y="154" width="145" height="74" rx="6" fill="#f5f5f4" stroke="#e2e2e0"/><text x="287" y="172" text-anchor="middle" font-weight="600">Services (src/server)</text><text x="287" y="188" text-anchor="middle">placement · desk</text><text x="287" y="202" text-anchor="middle">capture · export</text><text x="287" y="216" text-anchor="middle">locks, transactions</text>
+  <rect x="370" y="154" width="145" height="74" rx="6" fill="#e6f4f2" stroke="#0f766e"/><text x="442" y="172" text-anchor="middle" font-weight="600">Domain (src/domain)</text><text x="442" y="188" text-anchor="middle">pure: paise, schemes</text><text x="442" y="202" text-anchor="middle">GST, stock, credit, status</text><text x="442" y="216" text-anchor="middle">capture rules, Tally CSV</text>
+  <rect x="580" y="20" width="170" height="90" rx="8" fill="#fff" stroke="#1c1c1e"/><text x="665" y="42" text-anchor="middle" font-weight="600">Neon Postgres</text><text x="665" y="58" text-anchor="middle">ap-southeast-1 (Singapore)</text><text x="665" y="74" text-anchor="middle">sslmode=verify-full</text><text x="665" y="90" text-anchor="middle">prices, stock, orders, audit</text>
+  <rect x="580" y="140" width="170" height="60" rx="8" fill="#fff" stroke="#1c1c1e"/><text x="665" y="162" text-anchor="middle" font-weight="600">Google Gemini API</text><text x="665" y="178" text-anchor="middle">structured JSON output</text><text x="665" y="193" text-anchor="middle">8 s timeout, no retries</text>
+  <rect x="580" y="230" width="170" height="50" rx="8" fill="#fff" stroke="#1c1c1e" stroke-dasharray="4 3"/><text x="665" y="252" text-anchor="middle" font-weight="600">Tally (office PC)</text><text x="665" y="268" text-anchor="middle">imports downloaded CSV</text>
+  <rect x="200" y="262" width="330" height="56" rx="8" fill="#fff" stroke="#5b5b61" stroke-dasharray="4 3"/><text x="365" y="282" text-anchor="middle" font-weight="600">Tests (never touch production)</text><text x="365" y="298" text-anchor="middle">Vitest unit · integration + Playwright on guarded Neon test branch</text>
+  <line x1="160" y1="55" x2="213" y2="62" stroke="#5b5b61" marker-end="url(#a)"/>
+  <line x1="160" y1="160" x2="213" y2="118" stroke="#5b5b61" marker-end="url(#a)"/>
+  <line x1="530" y1="75" x2="578" y2="65" stroke="#5b5b61" marker-end="url(#a)"/>
+  <line x1="530" y1="180" x2="578" y2="172" stroke="#5b5b61" marker-end="url(#a)"/>
+  <polyline points="85,190 85,251 578,251" fill="none" stroke="#5b5b61" stroke-dasharray="3 3" marker-end="url(#a)"/><text x="140" y="247" fill="#5b5b61" font-size="10">CSV download (desk)</text>
+</svg>
+
+<h2>3. Database schema and important entities</h2>
+<p>There are 16 models, all money in integer <b>paise</b> and all rates in <b>basis points</b>. Hand-written migrations add <code>CHECK</code> constraints, for example <code>0 ≤ reservedCases ≤ stockCases</code>, and a retailer user must have a <code>retailerId</code>.</p>
+<table>
+  <tr><th>Entity</th><th>Key fields and purpose</th></tr>
+  <tr><td>PriceTier, Retailer, User, Session</td><td>Tier discount in bps. Retailer credit limit and outstanding (mocked ledger). User phone, role (RETAILER/DESK) and locale. Session stores only the SHA-256 of the token, with an expiry.</td></tr>
+  <tr><td>Brand, Category, Sku, Scheme</td><td>Dealer price, price unit (piece or case), pieces per case, GST bps, <code>stockCases</code> and <code>reservedCases</code>. Scheme is FREE_GOODS (buy X get Y) or SLAB_DISCOUNT (min cases, bps), with a validity window.</td></tr>
+  <tr><td>Order, OrderLine</td><td>Unique <code>clientRequestId</code> (idempotency), status, optimistic <code>version</code>, frozen totals, credit snapshot, <code>awaitingRetailerAck</code>, <code>captureId</code> and <code>exportBatchId</code>. Lines freeze the price, applied scheme, free cases, discount, GST and the other eligible offer.</td></tr>
+  <tr><td>OrderEvent</td><td>Append-only audit: PLACED, STATUS_CHANGED, LINE_EDITED/REMOVED, ACK_REQUESTED/ACCEPTED, CANCEL_REQUESTED, NOTE, EXPORTED. Records actor (null means system), from/to status, reason and a JSON before/after payload.</td></tr>
+  <tr><td>Capture, CaptureLine, Alias</td><td>Original message, raw model JSON, status and fail reason, latency. Per line: original words, the model's pick, the server's suggestion, score, confidence, flags, alternatives, and the person's resolution. Alias is (retailer, normalised phrase) → SKU.</td></tr>
+  <tr><td>ExportBatch, RateLimitHit</td><td>Batch number, order count, total and the stored CSV, so a re-download is byte-identical. Rate limits use fixed windows with atomic upsert counters.</td></tr>
+</table>
+<p>Seed data:</p>
+<ul>
+  <li>the brief's 3 SKUs exactly as given, plus 35 fictional SKUs across 4 brands;</li>
+  <li>20 fictional retailers with tiers, credit and outstanding balances, and 90 historical orders priced by the domain engine;</li>
+  <li>a desk user.</li>
+</ul>
+<p>Note: the historical median order is ₹11,566, against the ₹5,000 the brief assumes, because the brief's case prices run from ₹777 to ₹5,460. I did not manipulate the totals.</p>
+
+<h2>4. Authentication and authorization</h2>
+<ul>
+  <li><b>Login:</b> mock OTP. The phone number plus code <code>123456</code> works only when <code>AUTH_DEMO_OTP</code> is exactly <code>true</code>; otherwise every login is refused. Requests are rate-limited per phone and per IP, and the response is the same whether or not the phone exists.</li>
+  <li><b>Sessions:</b> a random 32-byte token in an HTTP-only, Secure, SameSite=Lax <code>__Host-</code> cookie. Only its SHA-256 is stored. Role and retailer are re-read from the database on every request, so a demotion or logout applies immediately. Logout is POST-only and revokes only the current session.</li>
+  <li><b>Every server action</b> goes through one wrapper: <code>action({ role, input, handler })</code>. It resolves the viewer from the session, checks the role, and validates input with a <i>strict</i> zod schema, so <code>retailerId</code> or <code>role</code> in the input is rejected. A registry test fails the build if any action bypasses the wrapper.</li>
+  <li><b>Ownership:</b> retailer reads are always scoped by <code>retailerId</code> from the session (<code>ownedBy(viewer)</code>). Another retailer's order or capture is <i>NOT_FOUND</i>, never "forbidden". Desk-only reads refuse non-desk viewers. The CSV route returns 404 to retailers, which is verified live.</li>
+  <li><b>No private data in shared caches:</b> signed-in pages are sent with <code>Cache-Control: private, no-store</code> (verified live), and the prerendered shell holds no private data.</li>
+</ul>
+
+<h2>5. Catalogue, pricing and retailer workflow</h2>
+<ul>
+  <li><b>Case price</b> = dealer price × pieces per case (when the price is per piece), less the tier discount, rounded half-up once per case. Example: biscuit ₹8.10 × 96 = ₹777.60.</li>
+  <li><b>GST transparency:</b> catalogue prices are shown <b>"+ GST"</b> (exclusive), alongside the per-piece price and the MRP (which includes GST). The cart and order show GST per rate and a <b>"Total payable (incl. GST)"</b>.</li>
+  <li><b>Stock badge:</b> "In stock", "Only N cases left" (≤ 20) or "Out of stock". The full inventory is never shown.</li>
+  <li><b>Scheme badges</b> show every active offer. Search understands shop words ("chai patti", "peti"). Repeat order copies an old order into the cart, which then re-prices it at today's terms.</li>
+</ul>
+
+<h2>6. Cart and order placement</h2>
+<ul>
+  <li><b>The cart lives on the device</b> (localStorage, one per user), so taps cost no network writes on 3G. The server prices it with the same engine, debounced, and returns an <b>HMAC-signed quote</b> of exactly what will be charged.</li>
+  <li><b>Placement runs in one transaction:</b>
+    <ol>
+      <li>Idempotency by <code>clientRequestId</code>: a retried submit returns the same order.</li>
+      <li>Lock the retailer row.</li>
+      <li>Re-price everything on the server.</li>
+      <li>Compare against the quote. Any change returns a fresh preview with nothing written.</li>
+      <li>Credit check: an over-limit order needs an explicit, still-current confirmation and lands on CREDIT_HOLD.</li>
+      <li>Reserve paid + free cases atomically.</li>
+      <li>Create the order with frozen lines and audit events.</li>
+    </ol>
+  </li>
+  <li>While a submission is pending, the cart is locked with the same request ID, so a flaky network can't create duplicates or change the payload.</li>
+</ul>
+
+<h2>7. Schemes, free goods, GST and credit</h2>
+<table>
+  <tr><th>Rule</th><th>Implementation (pure functions, unit-tested)</th></tr>
+  <tr><td>Free goods</td><td>Buy 10 get 1 per <b>complete multiple</b>: 9 → 0, 10 → 1, 21 → 2. Free cases never count toward the threshold, carry no taxable value and no GST, and their reference value is kept.</td></tr>
+  <tr><td>Slab discount</td><td>3% off the whole line at ≥ 5 cases. Detergent 5 cases: ₹10,150.00 − ₹304.50.</td></tr>
+  <tr><td>Best offer</td><td>Offers never stack. The higher-value offer applies, a tie goes to the discount, and the other eligible offer is named on the line.</td></tr>
+  <tr><td>Stock and free goods</td><td>Reservation includes free cases. If free goods don't fit, the retailer chooses: the most paid cases that keep the free goods, or the requested quantity with the best offer that has no free goods. Nothing switches silently.</td></tr>
+  <tr><td>GST</td><td>Per line on (taxable − discount), rounded half-up. Order total = sum of rounded line totals. Demo rates: biscuits and tea 5%, detergent 18%.</td></tr>
+  <tr><td>Nudge</td><td>"Add 3 more cases, get 1 free", shown only if stock covers the next multiple.</td></tr>
+  <tr><td>Credit</td><td>Available = limit − outstanding − open orders (pending, held, review, approved-not-exported). This stops a large order being split to slip under the limit. Exactly at the limit is fine; one paisa over is a hold. Rechecked at desk approval without counting the order twice.</td></tr>
+</table>
+
+<h2>8. Stock reservation and concurrency</h2>
+<ul>
+  <li><b>Reserve:</b> <code>UPDATE "Sku" SET "reservedCases" = "reservedCases" + n WHERE id = $1 AND "stockCases" - "reservedCases" &gt;= n</code>. Zero rows means stock short, and the transaction rolls back. Updates run in sorted SKU order, so concurrent orders can't deadlock.</li>
+  <li><b>Status effects</b> (from the status machine): approve <i>deducts</i> (stock −n, reserved −n); reject or cancel before approval <i>releases</i>; cancel after approval <i>restores</i>. Each happens exactly once under the order lock and an optimistic <code>version</code>. Two simultaneous approvals give one success and one CONFLICT, which is tested.</li>
+  <li><b>Lock order</b> everywhere is retailer → order → SKUs, shared by placement, retailer cancellation and desk changes.</li>
+  <li><b>Database <code>CHECK</code> constraints</b> guarantee stock and reservations never go negative, even if code were wrong.</li>
+</ul>
+
+<h2>9. AI order capture architecture</h2>
+<ol>
+  <li><b>Retailer pastes a message</b> on the "पर्ची / Order slip" tab (up to 1,000 characters). The client attaches a UUID; a retry after a lost response returns the same capture.</li>
+  <li><b>Rate limits</b> are atomic database counters: 5 per minute and 40 per day per user, plus 300 per day across the app to protect the quota.</li>
+  <li><b>Context</b> is built from the catalogue (short IDs S1…Sn, names, pack and case sizes), this retailer's past-ordered SKUs, this retailer's desk-verified aliases and the Hinglish glossary. No prices, stock, credit or personal data are sent.</li>
+  <li><b>One Gemini call</b> with <code>responseMimeType: application/json</code> and a JSON schema, temperature 0 and low thinking. Our 8-second abort is the only limit, with no SDK retries. The message sits inside delimiters, and the system prompt says it is data, never instructions.</li>
+  <li><b>Strict validation</b> of the output with zod. Invalid JSON, wrong types or empty output count as a failure. Injected fields such as price, stock or discount are dropped and never reach the result.</li>
+  <li><b>Deterministic post-processing</b> (<code>src/domain/capture/postprocess.ts</code>), described in §10.</li>
+  <li><b>The capture is stored:</b> original text, raw model output and the reviewed lines. <b>No order is created and no stock is reserved.</b></li>
+  <li><b>The retailer reviews and resolves every line</b> (accept, correct or remove), then confirms. Confirmation is idempotent: a retry or double tap returns the stored result. A device ledger guarantees the lines merge into the cart <b>once</b>. The order is then placed through the normal cart (signed quote, credit, reservation) and linked to the capture.</li>
+</ol>
+<p><b>Failure is safe:</b> no key, timeout, model busy (429/503), API error, invalid or empty output all become a FAILED capture with the message kept. The retailer sees <b>"Couldn't read this message"</b> with <b>Try again</b> and <b>Add items myself</b>. It never crashes.</p>
+
+<h2>10. Structured output, catalogue grounding, confidence and correction</h2>
+<ul>
+  <li><b>Grounding:</b> the model may only return catalogue short IDs. Code maps them to real, active SKUs, and anything else becomes an unmatched line the retailer must resolve or remove.</li>
+  <li><b>Quantity and unit</b> are checked against the retailer's own words:
+    <ul>
+      <li>the quantity must appear in the words and must not be a pack number ("250 wala");</li>
+      <li>only explicit case words ("peti", "case", "पेटी") count as cases;</li>
+      <li>pieces or packets are <b>never converted</b>, so the line becomes <i>Needs your answer</i>, showing "1 case = 96 packets";</li>
+      <li>"dabba" is ambiguous and is asked.</li>
+    </ul>
+  </li>
+  <li><b>Pack size:</b> when sibling packs exist (75 g, 150 g), the words must pin one, through a matching number or "chhota/bada" (smallest/largest). Otherwise the retailer is asked. Past orders never override this.</li>
+  <li><b>Confidence</b> uses the model's score as one signal only:
+    <ul>
+      <li>+10 if the SKU was ordered before, −15 if not;</li>
+      <li>−20 and capped at Low if the words don't support the product;</li>
+      <li>capped at Low if the quoted words aren't in the message;</li>
+      <li>at most Medium if another product is equally supported.</li>
+    </ul>
+    High ≥ 90 is pre-selected, Medium must be confirmed, Low must be chosen.
+  </li>
+  <li><b>Each line shows</b> the original words, a confidence chip, up to two alternative SKUs, flags (out of stock, duplicate) and a product picker and case stepper. Every line, even High, can be corrected.</li>
+  <li><b>Learning:</b> on a captured order, the desk can <b>Save as alias</b> for a confirmed line. That stores the line's words (quantity and case words removed, pack numbers and size words kept) → the resolved SKU, for that retailer only. The next capture maps those words straight to that product (High, flagged ALIAS). Retailer taps never become aliases automatically (D28).</li>
+</ul>
+
+<h2>11. AI evaluation and live behaviour (honest status)</h2>
+<div class="note">
+  <ul>
+    <li><b>Tests:</b> post-processing is covered by 31 unit tests using mocked model outputs on the real seed catalogue, including the brief's message. Provider timeout, overload, error and invalid-JSON paths are unit- and integration-tested. The E2E suite runs the full capture → review → cart journey with a scripted provider, which is refused on Vercel. <b>No automated test calls the real model.</b></li>
+    <li><b>Live deployment, bug found:</b> the live smoke test showed the SDK sends its 8 s timeout as a server deadline, which Gemini rejects (minimum 10 s). I fixed this to keep only our client-side abort.</li>
+    <li><b>Live deployment, model availability:</b> after the fix, <code>gemini-3.8-flash</code> (the original D95 choice) returned Google 503 "high demand" or exceeded 8 s on 9 Nov 2026. The app correctly showed the manual path. I switched the production model to <b><code>gemini-3.5-flash</code></b> (D107). This was an env change only, with no code change.</li>
+    <li><b>Live result</b> for the brief's message <code>bhaiya 5 peti biscuit chhota, 2 peti washing powder 1 kilo, chai patti 250 wala 1 peti</code>, from retailer R-0004 (who has never ordered these items):
+      <ul>
+        <li><b>3/3 lines correct:</b> SKU-BS-075 × 5 (the "chhota" biscuit, i.e. the smallest pack), SKU-DT-1KG × 2, SKU-TE-250 × 1, flagged out of stock.</li>
+        <li>All three were Medium confidence: the model gave 85, 98 and 95, and the server deducted 15 because these items weren't in the retailer's history. The biscuit line was also flagged "other products also match".</li>
+        <li>Alternatives offered were the 150 g biscuit and the cream biscuit; the 2 kg and 500 g detergent; and tea dust 250 g and tea 100 g.</li>
+        <li>Model latency was 3.0 s, and the whole round trip 4.4 s.</li>
+      </ul>
+    </li>
+    <li><b>Not done:</b> the 12-message real-model accuracy evaluation (D99) was not run. This single live check is not an accuracy figure.</li>
+  </ul>
+</div>
+
+<h2>12. Order desk and order lifecycle</h2>
+<table>
+  <tr><th>From</th><th>To</th><th>Who</th><th>Effect</th></tr>
+  <tr><td>(placement)</td><td>PENDING_REVIEW / CREDIT_HOLD</td><td>system</td><td>Reserve paid + free; a hold records how much over the limit</td></tr>
+  <tr><td>PENDING_REVIEW</td><td>APPROVED</td><td>desk</td><td>Credit re-checked; if now over the limit, the system moves it to CREDIT_HOLD. Otherwise reserved stock is deducted</td></tr>
+  <tr><td>CREDIT_HOLD</td><td>APPROVED</td><td>desk</td><td>"Release hold and approve" (explicit override, audited)</td></tr>
+  <tr><td>PENDING_REVIEW / CREDIT_HOLD / REVIEW_REQUIRED</td><td>CANCELLED</td><td>desk (reason required) · retailer own pending</td><td>Release reservation</td></tr>
+  <tr><td>APPROVED</td><td>CANCELLED</td><td>desk, reason required</td><td>Restore deducted stock</td></tr>
+  <tr><td>APPROVED</td><td>EXPORTED</td><td>desk via export batch</td><td>Final</td></tr>
+</table>
+<ul>
+  <li><b>Queue filters:</b> Needs action, Credit hold, Awaiting retailer, Approved, Exported, Cancelled. Rows show retailer, total, lines, "from message", "over by", "awaiting retailer" and "cancel requested".</li>
+  <li><b>Order detail:</b> retailer and live credit position, frozen lines with scheme, discount and GST, totals, the original message with each line's resolution, and the full event history with actor and reason.</li>
+  <li><b>Line edits:</b> the desk changes paid cases or removes a line. Only that line is re-priced at today's price and scheme. The reservation moves by the difference in paid + free cases (stock short means nothing changes).
+    <ul>
+      <li>If the total rises, the order needs the <b>retailer's acknowledgement</b>: the retailer sees "the office changed this order, new total…" with <b>Accept changes</b>, and the server refuses approval until then.</li>
+      <li>Decreases don't block.</li>
+      <li>The total at placement is kept for comparison.</li>
+    </ul>
+  </li>
+  <li><b>Cancellation requests</b> from retailers on held orders are flagged in the queue and on the order. The desk rejects them with a reason.</li>
+  <li><b>Every transition</b> goes through the one status machine (<code>src/domain/orders/status-machine.ts</code>). Invalid ones are refused, and stale versions get CONFLICT.</li>
+</ul>
+<p class="meta">Not built: changing a line's SKU (the desk rejects and the retailer re-orders); REVIEW_REQUIRED orders. Capture lines must all be resolved before the cart (D92), so placement never creates REVIEW_REQUIRED; the desk handles it if present.</p>
+
+<h2>13. Tally CSV export format and assumptions</h2>
+<p>The brief says only "Tally export" and specifies no format, so I defined and documented a contract. It is <b>not</b> a native Tally XML import, and <b>it has not been verified against a real Tally installation</b>. An accountant would map the columns once in Tally's import or a TDL utility.</p>
+<table>
+  <tr><th>Aspect</th><th>Contract</th></tr>
+  <tr><td>Voucher</td><td><code>Sales</code>, one voucher per order. Voucher no. = order number. One row per order line, with a header row. CRLF, UTF-8.</td></tr>
+  <tr><td>Date</td><td><code>DD-MM-YYYY</code> in IST (placement date)</td></tr>
+  <tr><td>Party ledger</td><td><code>&lt;retailer code&gt; &lt;shop name&gt;</code>, plus party code and area</td></tr>
+  <tr><td>Items</td><td>SKU code and English name. Unit <code>Case</code>. <code>Paid Qty</code>, and <code>Free Qty</code> separately with no value.</td></tr>
+  <tr><td>Values</td><td>Rate (case price), taxable value, discount % and amount. Money in rupees with 2 decimals.</td></tr>
+  <tr><td>Tax</td><td>Sales ledger <code>Sales @ r%</code>. Intra-state (Madhya Pradesh) ledgers <code>Output CGST @ r/2%</code> and <code>Output SGST @ r/2%</code>. CGST = floor(GST/2), SGST = the rest, so they always sum exactly.</td></tr>
+  <tr><td>Totals</td><td><code>Line Total</code> (incl. GST), applied scheme, and <code>Order Total</code> repeated on each row</td></tr>
+</table>
+<p class="meta">Column order: Batch, Voucher Type, Voucher No, Voucher Date, Party Code, Party Ledger, Area, Item Code, Item Name, Unit, Paid Qty, Free Qty, Rate, Taxable Value, Discount %, Discount, Sales Ledger, GST %, CGST Ledger, CGST, SGST Ledger, SGST, Line Total, Scheme, Order Total.</p>
+<p><b>Integrity:</b> one transaction does all of the following.</p>
+<ol>
+  <li>Locks every APPROVED, not-yet-exported order.</li>
+  <li>Checks the desk saw the same count and total; if not, nothing is exported and the new figures are shown.</li>
+  <li>Reconciles every order: taxable − discount + GST = line total, paid × rate = taxable, and the sum of lines = order total. A mismatch aborts the whole batch.</li>
+  <li>Stores the CSV.</li>
+  <li>Marks exactly those orders EXPORTED, with events.</li>
+</ol>
+<p>Failure therefore never leaves an order falsely EXPORTED. A concurrent second export waits on the locks and finds nothing, which is tested. Cells starting with <code>= + - @</code> are prefixed with <code>'</code> against spreadsheet formula injection. Live example row:</p>
+<p><code>1,Sales,91,09-11-2026,R-0003,R-0003 Patel Provision,Adhartal,SKU-DT-1KG,Detergent powder 1 kg,Case,5,0,2030.00,10150.00,3,304.50,Sales @ 18%,18,Output CGST @ 9%,886.09,Output SGST @ 9%,886.10,11617.69,3% off on 5 or more cases,11617.69</code></p>
+
+<!-- OWN WORDS: explain each screen's design choice in your voice. -->
+<h2 class="pb">14. UI decisions and screenshots (live app, 360 px)</h2>
+<ul>
+  <li><b>Built for a shopkeeper ordering between customers:</b> one column, big type, and the case price as the largest element. The GST basis sits right next to the price.</li>
+  <li><b>Tap targets</b> are at least 44–48 px, and the bottom navigation has four tabs: Items, Order slip, Orders and Cart.</li>
+  <li><b>Hindi by default</b>, with Latin digits and Indian grouping, as on bills.</li>
+  <li><b>Restrained palette:</b> one teal accent, amber for warnings and holds, red only for errors and out of stock.</li>
+  <li><b>Every screen</b> has loading skeletons, empty states and error states.</li>
+</ul>
+<div class="shots">
+  <figure><img src="screenshots/02-catalogue.png" alt="Catalogue"><figcaption>Catalogue: case price + GST label, per-piece price, MRP, stock and offer badges.</figcaption></figure>
+  <figure><img src="screenshots/03-cart.png" alt="Cart"><figcaption>Cart: priced by the server engine; slab discount, GST, total payable, credit.</figcaption></figure>
+  <figure><img src="screenshots/04-order.png" alt="Order"><figcaption>Order detail: status, frozen lines, cancel or order again.</figcaption></figure>
+  <figure><img src="screenshots/05-capture.png" alt="Capture"><figcaption>Order slip: paste a WhatsApp-style message.</figcaption></figure>
+  <figure><img src="screenshots/06c-capture-review.png" alt="Capture review"><figcaption>Review: original words, confidence chip, two alternatives, case stepper; every line must be checked.</figcaption></figure>
+  <figure><img src="screenshots/06d-capture-failed.png" alt="Capture failure"><figcaption>AI unavailable: message kept; try again or add items manually (live, from a 3.8 overload).</figcaption></figure>
+</div>
+<div class="two">
+  <figure class="wide"><img src="screenshots/07-desk-queue.png" alt="Desk queue"><figcaption>Desk queue with status filters and counts.</figcaption></figure>
+  <figure class="wide"><img src="screenshots/09-desk-export.png" alt="Tally export"><figcaption>Tally export: batch created, history with re-download.</figcaption></figure>
+</div>
+<figure class="wide"><img src="screenshots/08-desk-order.png" alt="Desk order"><figcaption>Desk order detail: retailer, live credit, lines with scheme and GST, line edit, decision, history.</figcaption></figure>
+
+<h2>15. Security and privacy</h2>
+<ul>
+  <li><b>Retailer isolation:</b> retailers can never read other retailers' prices, credit, orders or captures. Integration tests (<code>security.int.test.ts</code>) check this for the data functions and actions. The desk sees everything but must name the retailer for retailer-specific operations.</li>
+  <li><b>No secrets in the repo:</b> <code>.env*</code> is git-ignored, and <code>.env.example</code> lists names only. Production secrets live in Vercel env vars. The quote signing key was generated fresh for production. The Gemini key is server-only and never in client bundles.</li>
+  <li><b>Database connections</b> use TLS with <code>sslmode=verify-full</code>.</li>
+  <li><b>AI safety:</b> the prompt carries no personal data or prices. The model output is untrusted and validated. Injected price, stock or discount fields are discarded. The model cannot create orders.</li>
+  <li><b>Rate limits</b> on OTP and capture use atomic database counters, so they hold under concurrency and on serverless.</li>
+  <li><b>Request hardening:</b> server actions rely on Next's built-in Origin check, and a same-origin helper exists for route handlers. The only route handler (the CSV download) is a read-only GET that is desk-only and <code>no-store</code>. Logout is POST only.</li>
+  <li><b>Demo OTP</b> works only when explicitly enabled. It is enabled on the demo deployment for reviewers and would be off in production with a real SMS provider.</li>
+</ul>
+
+<h2>16. Testing strategy and actual results</h2>
+<table>
+  <tr><th>Layer</th><th>What</th><th>Result (9 Nov 2026)</th></tr>
+  <tr><td>Unit (Vitest, no database)</td><td>Money, pricing, schemes, GST, stock options, credit, status machine, capture post-processing (mocked AI), Tally CSV, cart state, prompt and provider, i18n</td><td><b>436/436 passed</b> (40 files)</td></tr>
+  <tr><td>Integration (Vitest, Neon test branch)</td><td>Auth and sessions, security isolation, catalogue, pricing, placement (idempotency, races, credit), reservation, retailer actions, capture (idempotency, failures, confirm, alias), desk (decisions, concurrency, edits, ack), export (duplicates, concurrency, reconciliation)</td><td><b>139/139 passed</b> (14 files, full run); the capture file re-run with the new alias test: 16/16</td></tr>
+  <tr><td>E2E (Playwright, 360 px, production build against the test branch)</td><td>Hindi login, search, add, nudge, place, history, order again; credit-hold confirmation; language persistence; capture → review → cart once; capture failure path; desk approve → export once → CSV download, with a 404 for retailers</td><td><b>9/9 passed</b> (full run on a fresh test-branch seed)</td></tr>
+  <tr><td>Live smoke (Playwright against the Vercel URL)</td><td>Retailer order → desk approval → export → CSV download, retailer 404 on the CSV, AI capture</td><td>Passed. AI capture: the brief&#39;s message gave 3/3 correct lines with <code>gemini-3.5-flash</code> (§11). Earlier runs on 3.8 showed the safe manual path.</td></tr>
+</table>
+<p>Tests use a <b>guarded</b> Neon test branch. The guard refuses to run unless <code>TEST_DATABASE_URL</code> differs from the production URLs, its host isn't protected, and a marker table exists, so the production database is never reset or seeded by tests.</p>
+
+<h2>17. Deployment architecture</h2>
+<ul>
+  <li><b>Pipeline:</b> GitHub → Vercel (every push to <code>main</code> deploys) → functions in <code>sin1</code> → Neon Postgres in Singapore (pooled URL for the app, direct URL for migrations).</li>
+  <li><b>Migrations</b> are applied deliberately with <code>prisma migrate deploy</code>, not during the build.</li>
+  <li><b>Env vars</b> (names only): <code>DATABASE_URL</code>, <code>DIRECT_URL</code>, <code>QUOTE_SIGNING_KEY</code>, <code>AUTH_DEMO_OTP</code>, <code>GEMINI_API_KEY</code>, <code>GEMINI_MODEL</code>. The fake AI provider is refused when <code>VERCEL=1</code>.</li>
+</ul>
+<p>Full steps are in <code>deployment.md</code>.</p>
+
+<h2>18. Performance and scale</h2>
+<p><b>Measured on the live app</b> with Playwright Chromium: empty cache, emulated slow 3G (400 ms RTT, 400 kbit/s) and 4× CPU slowdown, two runs each.</p>
+<table>
+  <tr><th>Page</th><th>TTFB</th><th>First contentful paint</th><th>Largest contentful paint</th><th>DOMContentLoaded</th><th>Load event</th><th>JS transferred</th><th>Total transferred</th></tr>
+  <tr><td>Login</td><td>0.49–0.51 s</td><td>2.19 s</td><td>2.19 s</td><td>1.74–1.76 s</td><td>4.02–4.06 s</td><td>140 KB (8 files)</td><td>150 KB</td></tr>
+  <tr><td>Catalogue (signed in, 38 products)</td><td>0.40 s</td><td>2.20–2.22 s</td><td>2.20–2.22 s</td><td>1.84–1.87 s</td><td>4.13–4.17 s</td><td>150 KB (10 files)</td><td>173 KB</td></tr>
+</table>
+<ul>
+  <li><b>Against the 3-second target:</b> content is visible in about 2.2 s, under 3 s. The full load event (all JS hydrated) takes about 4.1 s, over 3 s.</li>
+  <li><b>Caveats:</b> this is emulation, not a real low-end Android phone on a real 3G network. Lighthouse was not run.</li>
+  <li><b>Next steps:</b> fewer and smaller client components on the catalogue, and a service worker for repeat visits.</li>
+</ul>
+<p><b>Scale.</b> The brief assumes about 600 orders a day × 300 days (1.8 lakh orders, ₹90 crore). That is about 1 order a minute on average, perhaps 10–20 a minute at peak.</p>
+<ul>
+  <li><b>Contention:</b> placement locks only <i>one retailer's row</i> and the SKUs in the order, with short transactions, so two shops don't block each other. Hot SKUs serialise only on a single-row conditional update.</li>
+  <li><b>Indexes:</b> queue reads and credit sums use <code>Order(status, placedAt)</code> and <code>Order(retailerId, status)</code>. A year of orders (about 1.8 lakh orders and roughly 5 lakh lines) is small for Postgres.</li>
+  <li><b>AI capture cost</b> is bounded by per-user and global daily limits.</li>
+</ul>
+<p><b>Not done:</b> no load test was run. Neon pooler limits under bursty serverless traffic, a cold-start p95, and Gemini latency and quota at scale are <b>unverified</b>.</p>
+
+<!-- OWN WORDS: trade-offs and what you'd do next, in your voice. -->
+<h2>19. Trade-offs, limitations and future work</h2>
+<table>
+  <tr><th>Item</th><th>Status</th><th>Notes</th></tr>
+  <tr><td>Real-model accuracy evaluation</td><td class="def">Not run</td><td>One live check passed (3/3). A 12-message eval is next. The model moved from 3.8 to 3.5 Flash because of upstream overload (D107).</td></tr>
+  <tr><td>Desk SKU swap on a line; REVIEW_REQUIRED orders from partial captures (D27)</td><td class="def">Deferred</td><td>Retailer resolves every capture line instead (D92). The desk can reject and ask the retailer to re-order.</td></tr>
+  <tr><td>Retailer editing a pending order (D23)</td><td class="def">Deferred</td><td>Retailer can cancel and use Order again.</td></tr>
+  <tr><td>Desk-side capture on behalf of a retailer</td><td class="def">Deferred</td><td>Aliases are saved from retailer captures.</td></tr>
+  <tr><td>Salesman offline mode, photo and voice capture, van loading lists, 14-day inactivity dashboard</td><td class="def">Deferred</td><td>Optional depth in the brief.</td></tr>
+  <tr><td>Desk screens in English only</td><td class="part">By decision</td><td>D11/D106. Retailer screens are bilingual.</td></tr>
+  <tr><td>Tally import</td><td class="part">Assumed format</td><td>Not tested against real Tally. Native XML or TDL is next.</td></tr>
+  <tr><td>Protected pages return HTTP 200 with a login redirect or not-found content</td><td class="part">Known (D73)</td><td>Side effect of partial prerendering; no private data is ever sent.</td></tr>
+  <tr><td>Service worker / offline cache</td><td class="def">Not implemented</td><td>The manifest and icons make the app installable; no offline caching (also avoids storing private data on device).</td></tr>
+</table>
+<p><b>Next steps:</b></p>
+<ol>
+  <li>Run the 12-message evaluation, and move to provisioned quota or a fallback model chain for reliability.</li>
+  <li>Validate the CSV with the client's accountant in Tally.</li>
+  <li>Add the salesman role and an offline outbox.</li>
+  <li>Add photo and voice capture through the same post-processing.</li>
+  <li>Add a real SMS OTP provider.</li>
+  <li>Run a load test at 10× peak.</li>
+</ol>
+
+<h2>20. Assumptions (labelled)</h2>
+<ul>
+  <li>Dealer prices in the brief are per consumer pack; case price = price × pack count (to confirm).</li>
+  <li>Orders are in whole cases. Stock is shared across retailers. Free goods consume stock and carry zero taxable value; the GST treatment of free goods is to be confirmed with the accountant.</li>
+  <li>GST rates are demo values (biscuits and tea 5%, detergent 18%). Supply is intra-state (CGST + SGST).</li>
+  <li>The outstanding balance is a mocked ledger figure; Tally owns the truth. Payments are out of scope.</li>
+  <li>All seed names and phone numbers are fictional.</li>
+</ul>
+
+</body>
+</html>
