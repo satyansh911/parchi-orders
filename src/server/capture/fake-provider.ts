@@ -4,7 +4,7 @@
 //
 // Special messages for failure tests: "#timeout", "#busy", "#error", "#garbage", "#empty".
 
-import type { CaptureProvider } from "./provider";
+import type { CaptureProvider, ProviderResult } from "./provider";
 
 type FakeLine = { raw: string; code: string | null; qty: number | null; unit: "CASE" | "PIECE" | "UNKNOWN"; score: number; alternatives: string[] };
 
@@ -28,9 +28,25 @@ const SCRIPTS: Array<{ match: RegExp; lines: FakeLine[]; unmatched?: string[] }>
   },
 ];
 
+/** D111 tests: a fake "reads" a photo or voice note into these transcripts. Bytes containing "#timeout" etc. fail. */
+export const FAKE_PHOTO_TRANSCRIPT = "5 peti biscuit chhota, 2 peti washing powder 1 kilo, chai patti 250 wala 1 peti";
+export const FAKE_VOICE_TRANSCRIPT = "2 peti washing powder";
+
 export const fakeProvider: CaptureProvider = {
   name: "fake",
-  async extract(_prompt, { shortIdByCode, message }) {
+  async extract(prompt, context) {
+    const media = prompt.media;
+    const decoded = media ? Buffer.from(media.data, "base64").toString("latin1") : "";
+    const transcript = media ? (media.kind === "PHOTO" ? FAKE_PHOTO_TRANSCRIPT : FAKE_VOICE_TRANSCRIPT) : null;
+    const message = media ? `${transcript} ${(decoded.match(/#\w+/) ?? [""])[0]}`.trim() : context.message;
+    const result = await extractText(message, context.shortIdByCode);
+    if (!transcript || !result.ok || message.includes("#")) return result;
+    return { ok: true, model: result.model, text: JSON.stringify({ transcript, ...JSON.parse(result.text) }) };
+  },
+};
+
+async function extractText(message: string, shortIdByCode: ReadonlyMap<string, string>): Promise<ProviderResult> {
+  {
     const model = "fake";
     if (message.includes("#timeout")) return { ok: false, reason: "TIMEOUT", model };
     if (message.includes("#busy")) return { ok: false, reason: "UPSTREAM_BUSY", model };
@@ -46,5 +62,5 @@ export const fakeProvider: CaptureProvider = {
         }
       : { lines: [], unmatched: [message.trim().slice(0, 100)] };
     return { ok: true, text: JSON.stringify(output), model };
-  },
-};
+  }
+}

@@ -5,9 +5,17 @@
 import { GLOSSARY_FOR_PROMPT } from "@/domain/catalogue/glossary";
 import type { CaptureContext } from "@/domain/capture/postprocess";
 
-export type Prompt = { system: string; user: string };
+export type PromptMedia = { kind: "PHOTO" | "VOICE"; mimeType: string; data: string };
+export type Prompt = { system: string; user: string; media?: PromptMedia };
 
-export function buildPrompt(message: string, ctx: CaptureContext): Prompt {
+const MEDIA_RULES = [
+  "The order is ATTACHED (a photo of a handwritten list, or a voice note, usually Hindi or Hinglish).",
+  "First write out everything it says into transcript, exactly as written or spoken: one item per line, keep numbers as digits, Hindi in Devanagari or Hinglish in Latin letters as heard.",
+  "Then extract lines FROM THE TRANSCRIPT: raw must be copied exactly from your transcript.",
+  "If the photo or audio is unreadable, return an empty transcript and no lines.",
+];
+
+export function buildPrompt(message: string, ctx: CaptureContext, media?: PromptMedia): Prompt {
   const catalogue = ctx.skus
     .map((s) => `${s.shortId} | ${s.nameEn} | ${s.nameHi} | ${s.brand} | ${s.categoryEn} | pack ${s.packSize} | case of ${s.piecesPerCase}`)
     .join("\n");
@@ -26,6 +34,7 @@ export function buildPrompt(message: string, ctx: CaptureContext): Prompt {
     "- When several pack sizes fit and the words don't say which, still give your best sku but put the other sizes in alternatives and lower the score.",
     "- Prefer products this retailer ordered before when the words fit them equally.",
     "- Never output prices, stock, discounts or totals.",
+    ...(media ? MEDIA_RULES.map((r) => `- ${r}`) : []),
     "Glossary:",
     ...GLOSSARY_FOR_PROMPT.map((g) => `- ${g}`),
   ].join("\n");
@@ -34,8 +43,10 @@ export function buildPrompt(message: string, ctx: CaptureContext): Prompt {
     `<catalogue>\n${catalogue}\n</catalogue>`,
     `<history>past-ordered: ${past}</history>`,
     `<aliases>\n${aliases}\n</aliases>`,
-    `<message>\n${message.replaceAll("<", "‹").replaceAll(">", "›")}\n</message>`,
+    media
+      ? `<message>attached ${media.kind === "PHOTO" ? "photo of a handwritten order list" : "voice note"}</message>`
+      : `<message>\n${message.replaceAll("<", "‹").replaceAll(">", "›")}\n</message>`,
   ].join("\n");
 
-  return { system, user };
+  return media ? { system, user, media } : { system, user };
 }

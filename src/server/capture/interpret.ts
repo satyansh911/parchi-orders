@@ -7,6 +7,7 @@ import { postprocessCapture, type CaptureContext, type CaptureSku } from "@/doma
 import { availableCases } from "@/domain/stock/line-stock";
 import { incrementCounter } from "../rate-limit";
 import { parseModelOutput } from "./model-output";
+import type { CheckedMedia } from "./media";
 import { buildPrompt } from "./prompt";
 import type { CaptureProvider } from "./provider";
 
@@ -26,9 +27,18 @@ export function cleanMessage(message: string): string {
   return message.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, " ").replace(/[ \t]+/g, " ").trim().slice(0, MAX_MESSAGE_CHARS);
 }
 
-export async function interpretMessage(deps: Deps, who: Retailer, input: { clientRequestId: string; message: string }): Promise<InterpretResult> {
-  const message = cleanMessage(input.message);
-  if (!message) return { outcome: "REJECTED" };
+/**
+ * Typed text, or (D111) a checked photo / voice note: the model writes out
+ * what it reads or hears, and that transcript becomes the "original words"
+ * for exactly the same post-processing, review and confirmation as text.
+ */
+export async function interpretMessage(
+  deps: Deps,
+  who: Retailer,
+  input: { clientRequestId: string; message?: string; media?: CheckedMedia },
+): Promise<InterpretResult> {
+  const typed = cleanMessage(input.message ?? "");
+  if (!input.media && !typed) return { outcome: "REJECTED" };
 
   // D96: a retry of the same request returns the same capture; another retailer's ID is refused.
   const existing = await deps.db.capture.findUnique({ where: { clientRequestId: input.clientRequestId }, select: { id: true, retailerId: true, status: true } });
@@ -44,11 +54,14 @@ export async function interpretMessage(deps: Deps, who: Retailer, input: { clien
 
   const ctx = await loadContext(deps.db, who.retailerId);
   const started = Date.now();
-  const result = await deps.provider.extract(buildPrompt(message, ctx), { shortIdByCode: new Map(ctx.skus.map((s) => [s.code, s.shortId])), message });
+  const media = input.media ? { kind: input.media.kind, mimeType: input.media.mimeType, data: input.media.data } : undefined;
+  const result = await deps.provider.extract(buildPrompt(typed, ctx, media), { shortIdByCode: new Map(ctx.skus.map((s) => [s.code, s.shortId])), message: typed });
   const latencyMs = Date.now() - started;
   const parsed = result.ok ? parseModelOutput(result.text) : null;
-  const failReason = !result.ok ? result.reason : parsed && !parsed.ok ? parsed.reason : null;
-  const drafts = parsed?.ok ? postprocessCapture(message, parsed.output, ctx) : [];
+  // For media the transcript IS the message; without one there is nothing a person can check.
+  const message = media ? cleanMessage(parsed?.ok ? (parsed.transcript ?? "") : "") : typed;
+  const failReason = !result.ok ? result.reason : parsed && !parsed.ok ? parsed.reason : !message ? "EMPTY" : null;
+  const drafts = parsed?.ok && !failReason ? postprocessCapture(message, parsed.output, ctx) : [];
   let aiResponse: Prisma.InputJsonValue | undefined;
   if (result.ok) {
     try {
@@ -64,7 +77,8 @@ export async function interpretMessage(deps: Deps, who: Retailer, input: { clien
         retailerId: who.retailerId,
         createdById: who.userId,
         clientRequestId: input.clientRequestId,
-        rawText: message,
+        rawText: message || (media?.kind === "PHOTO" ? "[photo]" : "[voice note]"),
+        inputType: media?.kind ?? "TEXT",
         model: result.model,
         aiResponse,
         status: failReason ? "FAILED" : "PARSED",

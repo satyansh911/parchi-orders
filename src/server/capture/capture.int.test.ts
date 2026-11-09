@@ -190,3 +190,39 @@ describe("desk-verified aliases (D28)", () => {
     expect(other[1].suggestedSkuId).toBe(ids["SKU-DT-1KG"]);
   });
 });
+
+describe("photo and voice capture (D111)", () => {
+  const media = async (kind: "PHOTO" | "VOICE", magic: number[], extra = "") => {
+    const { checkMedia } = await import("./media");
+    const data = Buffer.concat([Buffer.from(magic), Buffer.from(`fake media ${extra}`)]).toString("base64");
+    const checked = checkMedia(kind, kind === "PHOTO" ? "image/jpeg" : "audio/webm", data);
+    if (!checked.ok) throw new Error(checked.problem);
+    return checked.media;
+  };
+  const JPEG = [0xff, 0xd8, 0xff, 0xe0];
+  const WEBM = [0x1a, 0x45, 0xdf, 0xa3];
+
+  it("a photo's transcript becomes the original words, through the same checks; the image is not stored", async () => {
+    const { FAKE_PHOTO_TRANSCRIPT } = await import("./fake-provider");
+    const r = await interpretMessage({ db, provider: fakeProvider, now: NOW }, who(A), { clientRequestId: randomUUID(), media: await media("PHOTO", JPEG) });
+    const c = await db.capture.findUniqueOrThrow({ where: { id: (r as { captureId: string }).captureId }, include: { lines: { orderBy: { position: "asc" } } } });
+    expect(c).toMatchObject({ status: "PARSED", inputType: "PHOTO", rawText: FAKE_PHOTO_TRANSCRIPT });
+    expect(c.lines.map((l) => l.suggestedSkuId)).toEqual([ids["SKU-BS-075"], ids["SKU-DT-1KG"], ids["SKU-TE-250"]]);
+    expect(JSON.stringify(c.aiResponse)).not.toContain("fake media"); // no media bytes kept
+    await nothingOrderedOrReserved();
+  });
+
+  it("a voice note works the same way", async () => {
+    const r = await interpretMessage({ db, provider: fakeProvider, now: NOW }, who(A), { clientRequestId: randomUUID(), media: await media("VOICE", WEBM) });
+    const c = await db.capture.findUniqueOrThrow({ where: { id: (r as { captureId: string }).captureId }, include: { lines: true } });
+    expect(c).toMatchObject({ status: "PARSED", inputType: "VOICE", rawText: "2 peti washing powder" });
+    expect(c.lines[0]).toMatchObject({ suggestedSkuId: ids["SKU-DT-1KG"], suggestedCases: 2 });
+  });
+
+  it("an unreadable or timed-out photo is a FAILED capture with a placeholder, never a crash", async () => {
+    const r = await interpretMessage({ db, provider: fakeProvider, now: NOW }, who(A), { clientRequestId: randomUUID(), media: await media("PHOTO", JPEG, "#timeout") });
+    expect(r).toMatchObject({ outcome: "FAILED" });
+    const c = await db.capture.findUniqueOrThrow({ where: { id: (r as { captureId: string }).captureId } });
+    expect(c).toMatchObject({ status: "FAILED", failReason: "TIMEOUT", rawText: "[photo]", inputType: "PHOTO" });
+  });
+});

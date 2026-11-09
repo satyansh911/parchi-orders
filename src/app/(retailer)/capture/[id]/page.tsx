@@ -73,7 +73,9 @@ async function ReviewContent({ params }: { params: Promise<{ id: string }> }) {
     <div lang={locale} className="flex flex-col gap-4 pt-4">
       <h1 className="text-xl font-semibold">{t("capture.review.title")}</h1>
       <section className="rounded-card bg-paper-dim p-3">
-        <h2 className="text-xs font-medium text-ink-muted">{s["capture.review.original"]}</h2>
+        <h2 className="text-xs font-medium text-ink-muted">
+          {capture.inputType === "PHOTO" ? s["capture.review.photo"] : capture.inputType === "VOICE" ? s["capture.review.voice"] : s["capture.review.original"]}
+        </h2>
         <p className="mt-1 whitespace-pre-wrap">{capture.rawText}</p>
       </section>
       <ReviewView userId={viewer.userId} captureId={capture.id} lines={lines} skus={options} s={s} />

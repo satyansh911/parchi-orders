@@ -63,6 +63,17 @@ describe("geminiProvider (timeouts and failures)", () => {
     expect((seen.httpOptions as Record<string, unknown>).timeout).toBeUndefined(); // the API rejects deadlines under 10 s
   });
 
+  it("sends a photo or voice note inline with the transcript schema (D111)", async () => {
+    let seen: { contents?: unknown; config?: Record<string, unknown> } = {};
+    const p = geminiProvider("m", async (args) => {
+      seen = args as typeof seen;
+      return { text: "{}" };
+    });
+    await p.extract({ ...prompt, media: { kind: "PHOTO", mimeType: "image/jpeg", data: "QUJD" } }, ctx);
+    expect(seen.contents).toEqual([{ role: "user", parts: [{ text: "u" }, { inlineData: { mimeType: "image/jpeg", data: "QUJD" } }] }]);
+    expect((seen.config!.responseJsonSchema as { required: string[] }).required).toContain("transcript");
+  });
+
   it("times out as TIMEOUT", async () => {
     const p = geminiProvider("m", (args) => new Promise((_, reject) => args.config!.abortSignal!.addEventListener("abort", () => reject(new Error("aborted")))), 20);
     expect(await p.extract(prompt, ctx)).toMatchObject({ ok: false, reason: "TIMEOUT" });

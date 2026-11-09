@@ -16,6 +16,8 @@ const line = z.object({
 });
 
 export const modelOutputSchema = z.object({
+  /** D111: what the photo / voice note says, written out. Absent for typed text. */
+  transcript: z.string().max(3_000).optional(),
   lines: z.array(line).max(60),
   unmatched: z.array(z.string().max(300)).max(30),
 });
@@ -45,7 +47,18 @@ export const MODEL_OUTPUT_JSON_SCHEMA = {
   required: ["lines", "unmatched"],
 } as const;
 
-export type ParsedModelOutput = { ok: true; output: ModelOutput } | { ok: false; reason: "INVALID_JSON" | "EMPTY" };
+/** D111: for a photo or voice note the model must first write out what it reads or hears. */
+export const MEDIA_OUTPUT_JSON_SCHEMA = {
+  ...MODEL_OUTPUT_JSON_SCHEMA,
+  properties: {
+    transcript: { type: "string", description: "Everything the photo or voice note says, written out exactly as written or spoken (Hindi in Devanagari, Hinglish in Latin letters). Item lines in order." },
+    ...MODEL_OUTPUT_JSON_SCHEMA.properties,
+  },
+  required: ["transcript", "lines", "unmatched"],
+  propertyOrdering: ["transcript", "lines", "unmatched"],
+} as const;
+
+export type ParsedModelOutput = { ok: true; output: ModelOutput; transcript: string | null } | { ok: false; reason: "INVALID_JSON" | "EMPTY" };
 
 export function parseModelOutput(text: string | undefined | null): ParsedModelOutput {
   if (!text || !text.trim()) return { ok: false, reason: "EMPTY" };
@@ -58,5 +71,6 @@ export function parseModelOutput(text: string | undefined | null): ParsedModelOu
   const parsed = modelOutputSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: "INVALID_JSON" };
   if (parsed.data.lines.length === 0 && parsed.data.unmatched.length === 0) return { ok: false, reason: "EMPTY" };
-  return { ok: true, output: parsed.data };
+  const { transcript, ...output } = parsed.data;
+  return { ok: true, output, transcript: transcript ?? null };
 }

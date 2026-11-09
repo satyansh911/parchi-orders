@@ -2,7 +2,7 @@
 // "text or a typed failure"; parsing and every trust decision happen after.
 
 import { ApiError, GoogleGenAI, ThinkingLevel } from "@google/genai";
-import { MODEL_OUTPUT_JSON_SCHEMA } from "./model-output";
+import { MEDIA_OUTPUT_JSON_SCHEMA, MODEL_OUTPUT_JSON_SCHEMA } from "./model-output";
 import type { Prompt } from "./prompt";
 import { fakeProvider } from "./fake-provider";
 
@@ -15,6 +15,8 @@ export interface CaptureProvider {
 }
 
 export const CAPTURE_TIMEOUT_MS = 8_000;
+/** D111: reading a photo or listening to a voice note takes longer than text. */
+export const MEDIA_TIMEOUT_MS = 25_000;
 export const MAX_OUTPUT_TOKENS = 4_096;
 
 type Generate = (args: Parameters<GoogleGenAI["models"]["generateContent"]>[0]) => Promise<{ text?: string | undefined }>;
@@ -25,15 +27,18 @@ export function geminiProvider(model: string, generate: Generate, timeoutMs = CA
     name: model,
     async extract(prompt) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const limit = prompt.media ? Math.max(timeoutMs, MEDIA_TIMEOUT_MS) : timeoutMs;
+      const timer = setTimeout(() => controller.abort(), limit);
       try {
         const response = await generate({
           model,
-          contents: prompt.user,
+          contents: prompt.media
+            ? [{ role: "user", parts: [{ text: prompt.user }, { inlineData: { mimeType: prompt.media.mimeType, data: prompt.media.data } }] }]
+            : prompt.user,
           config: {
             systemInstruction: prompt.system,
             responseMimeType: "application/json",
-            responseJsonSchema: MODEL_OUTPUT_JSON_SCHEMA,
+            responseJsonSchema: prompt.media ? MEDIA_OUTPUT_JSON_SCHEMA : MODEL_OUTPUT_JSON_SCHEMA,
             temperature: 0,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
