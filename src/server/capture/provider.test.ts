@@ -67,8 +67,9 @@ describe("geminiProvider (timeouts and failures)", () => {
     expect(await p.extract(prompt, ctx)).toMatchObject({ ok: false, reason: "TIMEOUT" });
   });
 
-  it("maps 429 to UPSTREAM_BUSY and anything else to API_ERROR", async () => {
+  it("maps 429 and 503 (model overloaded) to UPSTREAM_BUSY and anything else to API_ERROR", async () => {
     expect(await geminiProvider("m", async () => { throw new ApiError({ message: "x", status: 429 }); }).extract(prompt, ctx)).toMatchObject({ reason: "UPSTREAM_BUSY" });
+    expect(await geminiProvider("m", async () => { throw new ApiError({ message: "high demand", status: 503 }); }).extract(prompt, ctx)).toMatchObject({ reason: "UPSTREAM_BUSY" });
     expect(await geminiProvider("m", async () => { throw new Error("boom"); }).extract(prompt, ctx)).toMatchObject({ reason: "API_ERROR" });
   });
 });

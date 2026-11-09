@@ -45,7 +45,7 @@ export function geminiProvider(model: string, generate: Generate, timeoutMs = CA
         return { ok: true, text: response.text ?? "", model };
       } catch (error) {
         if (controller.signal.aborted) return { ok: false, reason: "TIMEOUT", model };
-        if (error instanceof ApiError && error.status === 429) return { ok: false, reason: "UPSTREAM_BUSY", model };
+        if (error instanceof ApiError && (error.status === 429 || error.status === 503)) return { ok: false, reason: "UPSTREAM_BUSY", model };
         return { ok: false, reason: "API_ERROR", model };
       } finally {
         clearTimeout(timer);
