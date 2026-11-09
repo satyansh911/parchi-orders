@@ -42,7 +42,9 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
-  const [problem, setProblem] = useState<NotPlacedProblem | "REJECTED" | null>(null);
+  // Tied to the cart they were about: Next keeps this page mounted (hidden)
+  // between visits, so a message must not outlive the cart it describes.
+  const [problemFor, setProblemFor] = useState<{ key: string; problem: NotPlacedProblem | "REJECTED" } | null>(null);
   const [placed, setPlaced] = useState<Extract<PlaceOrderResult, { outcome: "PLACED" }> | null>(null);
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
         if (response.error === "UNAUTHENTICATED") return router.push("/login?next=%2Fcart");
         // Refused before anything was created: unlock with a fresh ID (D76).
         update((c) => resolveNotCreated(c, newRequestId()));
-        return setProblem("REJECTED");
+        return setProblemFor({ key: JSON.stringify(pending.lines), problem: "REJECTED" });
       }
       const outcome = response.data;
       if (outcome.outcome === "PLACED") {
@@ -93,10 +95,10 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
       } else if (outcome.outcome === "NOT_PLACED") {
         update((c) => resolveNotCreated(c, newRequestId()));
         setResult({ key: JSON.stringify(pending.lines), preview: outcome.preview }); // show what changed
-        setProblem(outcome.problem);
+        setProblemFor({ key: JSON.stringify(pending.lines), problem: outcome.problem });
       } else {
         update((c) => resolveNotCreated(c, newRequestId()));
-        setProblem("REJECTED");
+        setProblemFor({ key: JSON.stringify(pending.lines), problem: "REJECTED" });
       }
     } catch {
       setUnconfirmed(true); // outcome unknown: keep the pending request and its ID (D76)
@@ -120,16 +122,18 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
     const quote = fresh?.quote;
     if (!quote || isLocked(cart)) return;
     setConfirming(false);
-    setProblem(null);
+    setProblemFor(null);
     update((c) => startSubmission(c, quote, confirmCreditHold, Date.now()));
   }
 
-  if (placed) return <PlacedPanel placed={placed} s={s} />;
+  // Shown only until the retailer starts a new cart (e.g. "Order again").
+  if (placed && cart.lines.length === 0) return <PlacedPanel placed={placed} s={s} />;
+  const problem = problemFor && problemFor.key === cartKey ? problemFor.problem : null;
 
   if (cart.lines.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        {problem === "REJECTED" && <p role="alert" className="text-sm text-danger">{s["cart.problem.REJECTED"]}</p>}
+        {problemFor?.problem === "REJECTED" && <p role="alert" className="text-sm text-danger">{s["cart.problem.REJECTED"]}</p>}
         <p className="text-ink-muted">{s["cart.empty"]}</p>
         <Link href="/catalogue" className="flex min-h-12 items-center rounded-card bg-accent px-6 font-semibold text-paper">{s["cart.browse"]}</Link>
       </div>
