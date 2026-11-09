@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { salesmanPackAction, syncSalesmanOrderAction } from "@/app/actions/salesman";
 import { expectationOf } from "@/domain/orders/offline-expectation";
 import { casePricePaise } from "@/domain/pricing/case-price";
-import { inactivity, INACTIVE_AFTER_DAYS } from "@/domain/retailers/inactivity";
+import { inactivity } from "@/domain/retailers/inactivity";
 import { packSkuToCatalogue, type PackShop } from "@/domain/salesman/pack";
 import { priceOfflineOrder } from "@/domain/salesman/price-offline";
 import { fill } from "@/i18n/fill";
@@ -231,7 +231,6 @@ function ShopList({ shops, s, onOpen }: { shops: PackShop[]; s: SalesmanStrings;
           ))}
         </ul>
       )}
-      <p className="text-xs text-ink-muted">{fill(s["sm.inactive"], { n: INACTIVE_AFTER_DAYS })}+ → {s["sm.onlyInactive"]}</p>
     </section>
   );
 }
