@@ -47,6 +47,8 @@ export function geminiProvider(model: string, generate: Generate, timeoutMs = CA
         return { ok: true, text: response.text ?? "", model };
       } catch (error) {
         if (controller.signal.aborted) return { ok: false, reason: "TIMEOUT", model };
+        // Status only: no message text, prompt or key is logged.
+        console.warn("capture provider failure", { model, status: error instanceof ApiError ? error.status : null });
         if (error instanceof ApiError && (error.status === 429 || error.status === 503)) return { ok: false, reason: "UPSTREAM_BUSY", model };
         return { ok: false, reason: "API_ERROR", model };
       } finally {

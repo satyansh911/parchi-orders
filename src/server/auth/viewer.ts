@@ -1,5 +1,6 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 import type { Role } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -12,6 +13,9 @@ import { findViewerByToken, type Viewer } from "./session-store";
  * cached across requests, so logout and demotion apply immediately.
  */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
+  // Request time only: never during a (runtime) prerender, which would also
+  // read the clock ("new Date() while prerendering" in the live logs).
+  await connection();
   return findViewerByToken(db, await readSessionToken(), new Date());
 });
 
