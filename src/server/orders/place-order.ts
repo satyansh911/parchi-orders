@@ -10,6 +10,7 @@
 // Any "not placed" outcome writes nothing and returns a fresh preview.
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { expectationOf, sameExpectation, type OfflineExpectation } from "@/domain/orders/offline-expectation";
 import { assertTransition } from "@/domain/orders/status-machine";
 import type { Viewer } from "../auth/session-store";
 import { priceCart, type CartLineInput, type CartPreview, type PricedCart } from "../cart/price-cart";
@@ -17,7 +18,18 @@ import { verifyQuote } from "../cart/quote";
 import { reserveStock, StockShortError } from "../stock/reservation";
 
 /** captureId: optional link to the confirmed capture behind this cart (evidence for the desk only, never pricing). */
-export type PlaceOrderInput = { clientRequestId: string; lines: CartLineInput[]; quote: string; confirmCreditHold: boolean; captureId?: string };
+export type PlaceOrderInput = {
+  clientRequestId: string;
+  lines: CartLineInput[];
+  /** Online: the signed quote the retailer saw (D75). */
+  quote?: string;
+  /** Offline salesman order (D108): what the phone computed; must match exactly. */
+  expected?: OfflineExpectation;
+  confirmCreditHold: boolean;
+  captureId?: string;
+  source?: "SALESMAN";
+  takenAt?: Date;
+};
 
 export type NotPlacedProblem = "QUOTE_CHANGED" | "STOCK_CHANGED" | "CREDIT_CONFIRMATION_REQUIRED";
 
@@ -48,8 +60,15 @@ export async function placeOrder(deps: Deps, viewer: Placer, input: PlaceOrderIn
 
       // The retailer must have seen exactly this (D75): any difference, an
       // expired, foreign or tampered quote, or a cart that now needs attention.
-      const check = verifyQuote(input.quote, deps.key, { retailerId: viewer.retailerId, now: deps.now });
-      if (preview.problem !== null || !check.ok || check.digest !== priced.digest) {
+      const seenExactly = input.quote
+        ? (() => {
+            const check = verifyQuote(input.quote, deps.key, { retailerId: viewer.retailerId, now: deps.now });
+            return check.ok && check.digest === priced.digest;
+          })()
+        : input.expected
+          ? sameExpectation(input.expected, serverExpectation(priced))
+          : false;
+      if (preview.problem !== null || !seenExactly) {
         return notPlaced("QUOTE_CHANGED", preview);
       }
       // D79: the server decides the hold; it must have been confirmed for THIS outcome.
@@ -81,6 +100,11 @@ export async function placeOrder(deps: Deps, viewer: Placer, input: PlaceOrderIn
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
+/** D108: the server's own view of the order, in the same shape the phone computes. */
+export function serverExpectation(priced: PricedCart): OfflineExpectation {
+  return expectationOf(priced.okLines.map(({ line }) => line), priced.preview.totals.totalPaise, priced.preview.credit.hold);
+}
+
 function findByRequestId(db: Db, clientRequestId: string) {
   return db.order.findUnique({ where: { clientRequestId }, select: { id: true, number: true, status: true, retailerId: true } });
 }
@@ -106,8 +130,9 @@ function orderData(viewer: Placer, input: PlaceOrderInput, priced: PricedCart, s
     clientRequestId: input.clientRequestId,
     retailerId: viewer.retailerId,
     placedById: viewer.userId,
-    source: captureId ? "AI_CAPTURE" : "CATALOGUE",
+    source: input.source ?? (captureId ? "AI_CAPTURE" : "CATALOGUE"),
     captureId,
+    takenAt: input.takenAt ?? null,
     status,
     taxablePaise: totals.taxablePaise,
     discountPaise: totals.discountPaise,
@@ -146,7 +171,7 @@ function orderData(viewer: Placer, input: PlaceOrderInput, priced: PricedCart, s
     },
     events: {
       create: [
-        { type: "PLACED", actorId: viewer.userId, toStatus: status, payload: { confirmCreditHold: input.confirmCreditHold }, createdAt: now },
+        { type: "PLACED", actorId: viewer.userId, toStatus: status, payload: { confirmCreditHold: input.confirmCreditHold, ...(input.source ? { source: input.source, takenAt: input.takenAt?.toISOString() ?? null } : {}) }, createdAt: now },
         ...(status === "CREDIT_HOLD"
           ? [{
               type: "STATUS_CHANGED" as const,
