@@ -11,8 +11,12 @@ export type CartLine = { skuId: string; paidCases: number; choice?: OfferChoice 
 /** A placement whose outcome isn't known yet (D76): ID and exact payload are kept. */
 export type PendingSubmission = { requestId: string; lines: CartLine[]; quote: string; confirmCreditHold: boolean; startedAt: number };
 
-/** mergedCaptureIds: captures already added to this cart (D98), kept across orders. */
-export type CartState = { v: 1; requestId: string; lines: CartLine[]; pending: PendingSubmission | null; mergedCaptureIds?: string[] };
+/**
+ * mergedCaptureIds: captures already added to this cart (D98), kept across orders.
+ * captureId: the capture behind the current cart, linked to the order it becomes
+ * so the desk sees the original message (cleared when an order is placed).
+ */
+export type CartState = { v: 1; requestId: string; lines: CartLine[]; pending: PendingSubmission | null; mergedCaptureIds?: string[]; captureId?: string };
 
 const MAX_LEDGER = 200;
 
@@ -28,7 +32,8 @@ export const hasMergedCapture = (s: CartState, captureId: string) => (s.mergedCa
 export function mergeCaptureLines(s: CartState, captureId: string, incoming: CartLine[], mode: "replace" | "add"): CartState {
   if (isLocked(s) || hasMergedCapture(s, captureId)) return s;
   const merged = mergeLines(s, incoming, mode);
-  return { ...merged, mergedCaptureIds: [...(s.mergedCaptureIds ?? []), captureId].slice(-MAX_LEDGER) };
+  const linked = mode === "replace" || !s.captureId || s.lines.length === 0 ? captureId : s.captureId;
+  return { ...merged, captureId: linked, mergedCaptureIds: [...(s.mergedCaptureIds ?? []), captureId].slice(-MAX_LEDGER) };
 }
 
 /** While a submission is pending the cart is locked: it must be resolved first (D76). */
@@ -98,7 +103,8 @@ export function parseCart(raw: string | null, newRequestId: () => string): CartS
     const unique = lines.filter((l, i) => lines.findIndex((m) => m.skuId === l.skuId) === i);
     const pending = data.pending && typeof data.pending.requestId === "string" && typeof data.pending.quote === "string" ? data.pending : null;
     const ledger = Array.isArray(data.mergedCaptureIds) ? data.mergedCaptureIds.filter((x): x is string => typeof x === "string").slice(-MAX_LEDGER) : [];
-    return { v: 1, requestId: data.requestId, lines: unique, pending, mergedCaptureIds: ledger };
+    const linked = typeof data.captureId === "string" && unique.length > 0 ? { captureId: data.captureId } : {};
+    return { v: 1, requestId: data.requestId, lines: unique, pending, mergedCaptureIds: ledger, ...linked };
   } catch {
     return emptyCart(newRequestId());
   }

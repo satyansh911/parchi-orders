@@ -139,3 +139,25 @@ describe("confirmCapture (D92, D98)", () => {
     expect(result.lines).toEqual([{ skuId: ids["SKU-BS-075"], paidCases: 6 }]);
   });
 });
+
+describe("capture → order link", () => {
+  it("links a confirmed capture to the order placed from it, once, and only for its own retailer", async () => {
+    const { randomBytes } = await import("node:crypto");
+    const { priceCart } = await import("../cart/price-cart");
+    const { placeOrder } = await import("../orders/place-order");
+    const key = randomBytes(32);
+    const res = await interpret(A, BRIEF);
+    const c = await db.capture.findUniqueOrThrow({ where: { id: (res as { captureId: string }).captureId }, include: { lines: true } });
+    const confirmed = await confirmCapture(db, who(A), c.id, c.lines.map((l) => ({ lineId: l.id, skuId: ids["SKU-BS-075"], cases: 1 })), NOW);
+    const placeAs = async (r: R, captureId: string) => {
+      const { preview } = await priceCart({ db, key, now: NOW }, { id: r.retailer.id, tierDiscountBps: 0 }, confirmed.lines);
+      return placeOrder({ db, key, now: NOW }, who(r), { clientRequestId: randomUUID(), lines: confirmed.lines, quote: preview.quote!, confirmCreditHold: preview.credit.hold, captureId });
+    };
+    const foreign = await placeAs(B, c.id); // B can't claim A's capture: placed, but unlinked
+    const mine = await placeAs(A, c.id);
+    const again = await placeAs(A, c.id); // already linked: second order is plain
+    const orders = await db.order.findMany({ orderBy: { number: "asc" }, select: { captureId: true, source: true, retailerId: true } });
+    expect([foreign.outcome, mine.outcome, again.outcome]).toEqual(["PLACED", "PLACED", "PLACED"]);
+    expect(orders.map((o) => [o.source, o.captureId])).toEqual([["CATALOGUE", null], ["AI_CAPTURE", c.id], ["CATALOGUE", null]]);
+  });
+});

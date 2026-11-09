@@ -16,7 +16,8 @@ import { priceCart, type CartLineInput, type CartPreview, type PricedCart } from
 import { verifyQuote } from "../cart/quote";
 import { reserveStock, StockShortError } from "../stock/reservation";
 
-export type PlaceOrderInput = { clientRequestId: string; lines: CartLineInput[]; quote: string; confirmCreditHold: boolean };
+/** captureId: optional link to the confirmed capture behind this cart (evidence for the desk only, never pricing). */
+export type PlaceOrderInput = { clientRequestId: string; lines: CartLineInput[]; quote: string; confirmCreditHold: boolean; captureId?: string };
 
 export type NotPlacedProblem = "QUOTE_CHANGED" | "STOCK_CHANGED" | "CREDIT_CONFIRMATION_REQUIRED";
 
@@ -58,7 +59,11 @@ export async function placeOrder(deps: Deps, viewer: Placer, input: PlaceOrderIn
 
       const status = preview.credit.hold ? "CREDIT_HOLD" : "PENDING_REVIEW";
       assertTransition("NEW", status, "SYSTEM");
-      const order = await tx.order.create({ data: orderData(viewer, input, priced, status, deps.now), select: { id: true, number: true } });
+      // Link only this retailer's own confirmed, not-yet-ordered capture; anything else is ignored (under the retailer lock, so no race).
+      const capture = input.captureId
+        ? await tx.capture.findFirst({ where: { id: input.captureId, retailerId: viewer.retailerId, status: "CONFIRMED", order: null }, select: { id: true } })
+        : null;
+      const order = await tx.order.create({ data: orderData(viewer, input, priced, status, deps.now, capture?.id ?? null), select: { id: true, number: true } });
       return { outcome: "PLACED", orderId: order.id, number: order.number, status, alreadyPlaced: false } as const;
     }, PLACEMENT_TX);
   } catch (error) {
@@ -93,7 +98,7 @@ async function freshPreview(deps: Deps, viewer: Placer, input: PlaceOrderInput):
   return (await priceCart(deps, { id: viewer.retailerId, tierDiscountBps: tier.tier.discountBps }, input.lines)).preview;
 }
 
-function orderData(viewer: Placer, input: PlaceOrderInput, priced: PricedCart, status: "PENDING_REVIEW" | "CREDIT_HOLD", now: Date): Prisma.OrderUncheckedCreateInput {
+function orderData(viewer: Placer, input: PlaceOrderInput, priced: PricedCart, status: "PENDING_REVIEW" | "CREDIT_HOLD", now: Date, captureId: string | null): Prisma.OrderUncheckedCreateInput {
   const { preview } = priced;
   const { totals, credit } = preview;
   const skuInfo = new Map(preview.lines.flatMap((l) => (l.status === "OK" ? [[l.skuId, l.sku] as const] : [])));
@@ -101,7 +106,8 @@ function orderData(viewer: Placer, input: PlaceOrderInput, priced: PricedCart, s
     clientRequestId: input.clientRequestId,
     retailerId: viewer.retailerId,
     placedById: viewer.userId,
-    source: "CATALOGUE",
+    source: captureId ? "AI_CAPTURE" : "CATALOGUE",
+    captureId,
     status,
     taxablePaise: totals.taxablePaise,
     discountPaise: totals.discountPaise,

@@ -19,6 +19,7 @@ export const placeOrderAction = action({
     lines: cartLinesSchema.min(1),
     quote: z.string().min(1).max(2_000),
     confirmCreditHold: z.boolean(),
+    captureId: z.string().min(1).max(40).optional(),
   }),
   handler: async (input, { viewer }): Promise<PlaceOrderResult> => {
     const key = quoteKeyFromEnv();

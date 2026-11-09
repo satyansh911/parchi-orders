@@ -115,6 +115,7 @@ describe("capture merge guard (D98)", () => {
   it("adds a capture's lines once; retries, reloads and double taps add nothing more", () => {
     const once = mergeCaptureLines(start(), "cap-1", lines, "add");
     expect(once.lines).toEqual(lines);
+    expect(once.captureId).toBe("cap-1");
     expect(hasMergedCapture(once, "cap-1")).toBe(true);
     expect(mergeCaptureLines(once, "cap-1", lines, "add")).toBe(once);
     const reloaded = parseCart(JSON.stringify(once), () => "x");
@@ -124,10 +125,13 @@ describe("capture merge guard (D98)", () => {
   it("still blocks a re-merge after the order was placed (ledger survives)", () => {
     const placed = resolvePlaced(mergeCaptureLines(start(), "cap-1", lines, "add"), "req-2");
     expect(mergeCaptureLines(placed, "cap-1", lines, "add").lines).toEqual([]);
+    expect(placed.captureId).toBeUndefined(); // the link went with the placed order
   });
 
   it("a different capture still merges", () => {
     const s = mergeCaptureLines(mergeCaptureLines(start(), "cap-1", lines, "add"), "cap-2", lines, "add");
     expect(s.lines).toEqual([{ skuId: "a", paidCases: 10 }]);
+    expect(s.captureId).toBe("cap-1"); // the first capture stays linked; "replace" would switch it
+    expect(mergeCaptureLines(s, "cap-3", lines, "replace").captureId).toBe("cap-3");
   });
 });

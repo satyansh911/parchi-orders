@@ -81,6 +81,7 @@ export function CartView({ userId, locale, s }: { userId: string; locale: Locale
         lines: pending.lines,
         quote: pending.quote,
         confirmCreditHold: pending.confirmCreditHold,
+        ...(cart.captureId ? { captureId: cart.captureId } : {}),
       });
       if (!response.ok) {
         if (response.error === "UNAUTHENTICATED") return router.push("/login?next=%2Fcart");
