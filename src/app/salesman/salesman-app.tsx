@@ -9,6 +9,7 @@ import { packSkuToCatalogue, type PackShop } from "@/domain/salesman/pack";
 import { priceOfflineOrder } from "@/domain/salesman/price-offline";
 import { fill } from "@/i18n/fill";
 import { formatPaise } from "@/i18n/format";
+import { PackImage } from "@/ui/pack-image";
 import { Stepper } from "@/ui/stepper";
 import {
   acceptNewTotal, cartLines, discardEntry, editEntry, emptyState, parseState, pendingFor, saveOrder, setCases, toSend, updateEntry,
@@ -268,10 +269,11 @@ function ShopView({ shop, state, s, onBack, onCases, onSave }: {
           const out = k.availableCases - (pending.skuCases.get(k.id) ?? 0) <= 0;
           return (
             <li key={k.id} className="flex items-center justify-between gap-3 p-3" data-testid="sm-sku">
-              <div className="min-w-0">
+              <PackImage shape={k.imageKey} brand={k.brand} name={k.nameEn} packSize={k.packSize} size={56} />
+              <div className="min-w-0 flex-1">
                 <p className="font-medium">{k.nameHi} · {k.packSize}</p>
                 <p className="text-sm"><span className="font-semibold">{formatPaise(casePricePaise(packSkuToCatalogue(k), shop.tierDiscountBps))}</span> <span className="text-ink-muted">{s["sm.perCase"]}</span></p>
-                {k.schemes[0] && <p className="text-xs text-accent">{k.schemes.map((x) => x.labelHi || x.labelEn).join(" · ")}</p>}
+                {k.schemes[0] && <p className="text-xs font-semibold text-accent-strong">{k.schemes.map((x) => x.labelHi || x.labelEn).join(" · ")}</p>}
                 {out && !inCart && <p className="text-xs text-danger">{s["sm.outOfStock"]}</p>}
                 {l?.status === "OK" && l.line.freeCases > 0 && <p className="text-xs font-medium text-ok">{fill(s["sm.free"], { n: l.line.freeCases })}</p>}
                 {l?.status === "STOCK_SHORT" && <p className="text-xs text-danger">{fill(s["sm.stockShort"], { n: l.maxPaidCases })}</p>}

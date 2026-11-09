@@ -3,6 +3,7 @@ import { getTranslator, pickStrings } from "@/i18n/server";
 import { requirePageViewer } from "@/server/auth/viewer";
 import { LocaleToggle } from "@/ui/locale-toggle";
 import { LogoutButton } from "@/ui/logout-button";
+import { PackSprite } from "@/ui/pack-image";
 import { SalesmanApp } from "./salesman-app";
 import { SALESMAN_KEYS } from "./strings";
 
@@ -14,6 +15,7 @@ export const metadata = { title: "Salesman · Parchi Orders" };
 export default function SalesmanPage() {
   return (
     <div className="mx-auto min-h-dvh max-w-3xl">
+      <PackSprite />
       <Suspense fallback={<div className="m-4 h-64 animate-pulse rounded-card bg-paper-dim" />}>
         <Content />
       </Suspense>
