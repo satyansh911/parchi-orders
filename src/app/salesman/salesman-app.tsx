@@ -279,7 +279,8 @@ function ShopView({ shop, state, s, onBack, onCases, onSave }: {
                 {l?.status === "OUT_OF_STOCK" && <p className="text-xs text-danger">{s["sm.outOfStock"]}</p>}
               </div>
               <Stepper value={inCart} disabled={out && !inCart} onIncrease={() => onCases(k.id, inCart + 1)} onDecrease={() => onCases(k.id, inCart - 1)}
-                addLabel={s["cart.add"]} increaseLabel={s["cart.increase"]} decreaseLabel={s["cart.decrease"]} quantityLabel={s["cart.quantity"]} />
+                addLabel={fill(s["cart.add"], { name: k.nameHi })} increaseLabel={fill(s["cart.increase"], { name: k.nameHi })}
+                decreaseLabel={fill(s["cart.decrease"], { name: k.nameHi })} quantityLabel={fill(s["cart.quantity"], { name: k.nameHi })} />
             </li>
           );
         })}

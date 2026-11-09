@@ -7,7 +7,7 @@ export async function login(page: Page, phone: string) {
   await page.getByRole("button", { name: /कोड भेजें|Get code/ }).click();
   await page.getByLabel(/6 अंकों का कोड|6-digit code/).fill("123456");
   await page.getByRole("button", { name: /लॉग इन करें|Log in/ }).click();
-  await page.waitForURL(/\/(catalogue|desk)(\?|$)/); // the session cookie is set once we land home
+  await page.waitForURL(/\/(catalogue|desk|salesman)(\?|$)/); // the session cookie is set once we land home
 }
 
 /** The catalogue row for a product, matched by a stable part of its name (avoids nukta encoding differences). */

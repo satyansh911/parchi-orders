@@ -25,6 +25,14 @@ test("desk journey: approve a new order, export it once, download the CSV", asyn
   await desk.getByRole("button", { name: "Approve" }).click();
   await expect(desk.getByText("Approved", { exact: true }).first()).toBeVisible();
 
+  // Van loading list for today includes the approved order (D110); the inactive dashboard loads (D112).
+  await desk.getByRole("link", { name: "Van loading" }).click();
+  await expect(desk.getByRole("heading", { name: "Van loading lists" })).toBeVisible();
+  await expect(desk.getByRole("heading", { name: /^Van \d/ }).first()).toBeVisible();
+  await expect(desk.getByRole("cell", { name: /Glucose biscuit 75 g/ }).first()).toBeVisible();
+  await desk.getByRole("link", { name: "Inactive 14d" }).click();
+  await expect(desk.getByRole("heading", { name: "No order in 14 days" })).toBeVisible();
+
   // A retailer can't open the desk.
   await shop.goto(`/desk/orders/${orderId}`);
   await expect(shop.getByRole("button", { name: "Approve" })).toHaveCount(0);

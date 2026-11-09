@@ -38,9 +38,10 @@ export const fakeProvider: CaptureProvider = {
     const media = prompt.media;
     const decoded = media ? Buffer.from(media.data, "base64").toString("latin1") : "";
     const transcript = media ? (media.kind === "PHOTO" ? FAKE_PHOTO_TRANSCRIPT : FAKE_VOICE_TRANSCRIPT) : null;
-    const message = media ? `${transcript} ${(decoded.match(/#\w+/) ?? [""])[0]}`.trim() : context.message;
+    const trigger = (decoded.match(/#(timeout|busy|error|garbage|empty)\b/) ?? [""])[0]; // real image bytes may contain "#"
+    const message = media ? `${transcript} ${trigger}`.trim() : context.message;
     const result = await extractText(message, context.shortIdByCode);
-    if (!transcript || !result.ok || message.includes("#")) return result;
+    if (!transcript || !result.ok || trigger) return result;
     return { ok: true, model: result.model, text: JSON.stringify({ transcript, ...JSON.parse(result.text) }) };
   },
 };

@@ -43,3 +43,15 @@ test("capture failure shows the manual path, never a crash", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "यह संदेश नहीं पढ़ पाए" })).toBeVisible();
   await expect(page.getByRole("link", { name: "सामान खुद जोड़ें" })).toBeVisible();
 });
+
+test("photo order: the photo's transcript is reviewed like typed text (D111)", async ({ page }) => {
+  await login(page, "9999900106");
+  await page.goto("/capture");
+  await page.getByRole("tab", { name: "फ़ोटो" }).click();
+  const photo = await page.screenshot({ type: "jpeg", quality: 60 }); // any real JPEG; the scripted provider "reads" the brief's list
+  await page.getByTestId("photo-input").setInputFiles({ name: "parchi.jpg", mimeType: "image/jpeg", buffer: photo });
+  await page.getByRole("button", { name: "ऑर्डर समझें" }).click();
+  await expect(page.getByRole("heading", { name: "ऑर्डर जाँचें" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("फ़ोटो में लिखा है")).toBeVisible();
+  await expect(page.getByTestId("capture-line")).toHaveCount(3);
+});
