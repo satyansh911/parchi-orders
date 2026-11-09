@@ -19,8 +19,8 @@ describe("web app manifest (D86)", () => {
   });
 });
 
-describe("no service worker (D86)", () => {
-  it("nothing in src registers one", () => {
+describe("service worker only for the salesman app (D86, superseded for salesmen by D108)", () => {
+  it("only the salesman app registers one", () => {
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((n) => {
         const p = join(dir, n);
@@ -28,6 +28,13 @@ describe("no service worker (D86)", () => {
         return statSync(p).isDirectory() ? files(p) : /\.(ts|tsx)$/.test(n) && !n.endsWith(".test.ts") ? [p] : [];
       });
     const offenders = files(join(process.cwd(), "src")).filter((f) => /serviceWorker\s*\.\s*register/.test(readFileSync(f, "utf8")));
-    expect(offenders).toEqual([]);
+    expect(offenders.map((f) => f.replace(join(process.cwd(), "src"), "src"))).toEqual(["src/app/salesman/salesman-app.tsx"]);
+  });
+
+  it("the worker caches only the salesman shell and static files, never data or other pages", () => {
+    const sw = readFileSync(join(process.cwd(), "public/sw.js"), "utf8");
+    expect(sw).toMatch(/const SHELL = "\/salesman"/);
+    expect(sw).toMatch(/request\.method !== "GET"\) return/);
+    expect(sw).not.toMatch(/\/catalogue|\/cart|\/orders|\/desk|\/api\//);
   });
 });
