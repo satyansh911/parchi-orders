@@ -3,6 +3,8 @@
 // from the glossary (DECISIONS #9) are understood: "chai patti" finds tea,
 // "washing powder" finds detergent, "kilo" finds "kg".
 
+import { FILLER_WORDS, SYNONYMS } from "./glossary";
+
 export type Searchable = {
   code: string;
   nameEn: string;
@@ -13,31 +15,13 @@ export type Searchable = {
   packSize: string;
 };
 
-/** Each spoken/shop word → the words it should match in product data. */
-const SYNONYMS: Record<string, string[]> = {
-  chai: ["tea", "चाय"],
-  patti: ["leaf", "पत्ती"],
-  washing: ["detergent"],
-  powder: ["powder"],
-  kilo: ["kg", "किलो"],
-  kg: ["kg", "किलो"],
-  gram: ["g", "ग्राम"],
-  biskut: ["biscuit"],
-  namkeen: ["namkeen", "snacks", "नमकीन"],
-  sabun: ["bar", "soap", "साबुन"],
-  masala: ["masala", "मसाला"],
-};
-
-/** Words that carry no product meaning in shop speech ("250 wala" = "250"). */
-const IGNORED = new Set(["wala", "vala", "wali", "ka", "ki", "ke", "peti", "pack", "packet"]);
-
 export function normaliseQuery(query: string): string[] {
   return query
     .toLowerCase()
     .normalize("NFC")
     .split(/[\s,]+/)
     .map((w) => w.trim())
-    .filter((w) => w.length > 0 && !IGNORED.has(w));
+    .filter((w) => w.length > 0 && !FILLER_WORDS.has(w));
 }
 
 export function matchesQuery(item: Searchable, query: string): boolean {
