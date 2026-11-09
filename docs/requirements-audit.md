@@ -44,17 +44,18 @@ Status values:
 | Tests never use the primary database | Guarded test branch with marker | Guard tests | Complete |
 | Deploy on Vercel, `sin1`, Singapore database, verify-full | `vercel.json`, env | `x-vercel-id: bom1::sin1`, live smoke | Complete |
 
-## Optional depth (MUST HAVE beyond the core)
+## MUST HAVE beyond the core
 
-| Requirement | Status |
-|---|---|
-| Salesman mode, offline | Deferred |
-| AI capture from photo and voice | Deferred |
-| Van loading lists | Deferred |
-| Dashboard of retailers with no order in 14 days | Deferred |
-| Desk-side capture on behalf of a retailer | Deferred |
-| REVIEW_REQUIRED from partial captures (D27) | Deferred (D92) |
-| Retailer editing a pending order (D23) | Deferred |
+| Requirement | Implementation | Verification | Status |
+|---|---|---|---|
+| Installable web app with OTP login, catalogue, prices, schemes, stock, repeat order, credit limit | Manifest and icons; all retailer features above | Live | Complete |
+| Salesman mode during visits, working offline | SALESMAN role, assigned shops (D109); offline pack, on-phone pricing with the domain engine, outbox, sync with an exact-match check (D108); salesman-only service worker (D113) | Unit (state, pricing), integration (parity, changed price, access, idempotency), E2E with the network off, live with the network off | Complete |
+| AI order capture from a photo of a list | One transcribe-and-extract call; checked file type and bytes; transcript goes through the same pipeline (D111) | Unit (media checks, provider), integration, E2E (photo), live: 4/4 items correct | Complete |
+| AI order capture from a Hindi voice note | Record in the browser or upload a file; same pipeline | Integration, live: synthesized Hindi voice, 2/2 correct | Complete (not tested with real shop voices) |
+| Order desk van loading lists | `domain/loading`, `/desk/loading`, printable | Unit, integration, E2E, live | Complete |
+| Dashboard of retailers with no order in 14 days | `domain/retailers/inactivity`, `/desk/inactive`, filter in the salesman app | Unit, integration (scoping), E2E, live | Complete |
+| AI capture inside the salesman app; desk-side capture | — | — | Deferred |
+| REVIEW_REQUIRED from partial captures (D27); retailer editing a pending order (D23) | — | — | Deferred |
 
 ## Submission
 

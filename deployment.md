@@ -13,7 +13,10 @@ Login is a **mock OTP**. Enter the phone number, tap **Get code**, then enter th
 
 | Role | Phone | Notes |
 |---|---|---|
-| Order desk | `9999900001` | Opens the order desk (queue, approval, Tally export) |
+| Order desk | `9999900001` | Order queue, approval, van loading lists, inactive retailers, Tally export |
+| Salesman, Van 1 (North) | `9999900201` | Adhartal, Vijay Nagar, Ranjhi, Ghamapur, Gohalpur, Kanchghar, Karmeta |
+| Salesman, Van 2 (Central) | `9999900202` | Napier Town, Wright Town, Sadar, Civil Lines, Madan Mahal, Dixitpura, Ganjipura |
+| Salesman, Van 3 (South) | `9999900203` | Garha, Gorakhpur, Gwarighat, Tilwara, Bilhari, Shastri Nagar |
 | Retailer R-0001 | `9999900101` | Gupta Kirana Store, standard tier |
 | Retailer R-0007 | `9999900107` | Already at the credit limit, so any order shows the credit-hold path |
 | Other retailers | `9999900102` – `9999900120` | 20 fictional shops with different tiers, credit and order history |
@@ -50,6 +53,23 @@ Retailer screens open in **Hindi**. Use the **English / हिंदी** toggle
 4. **Add to cart.** Nothing is ordered until the cart is placed as usual. The order is linked to the original message for the desk.
 5. If the AI can't read the message, the screen says **"Couldn't read this message"** and offers **Add items myself**. This happens on a timeout, invalid output or a missing key.
 
+### Retailer: order from a photo or a Hindi voice note
+1. On **पर्ची / Order slip**, choose **फ़ोटो / Photo**.
+   - Take or choose a photo of a handwritten list. The phone shrinks it before upload.
+   - Or choose **आवाज़ / Voice**, then **Record** for up to 60 s, or pick a voice-note file (WhatsApp `.opus`/`.ogg`, `.m4a`, `.mp3`).
+2. Tap **ऑर्डर समझें**. Gemini writes out what the photo says or what was said, and that text is shown as "The photo says" or "The voice note says".
+3. The lines go through the same review, correction and **Add to cart** as typed text.
+4. The photo or audio itself is **not stored**; only the written-out text is kept.
+
+### Salesman: take orders with no signal
+1. Log in as `9999900202`. The app downloads your shops (prices for each shop's tier, schemes, stock, credit) and shows **"Ready offline"**.
+2. **Go offline**, for example with airplane mode or DevTools → Network → Offline, then reload. The app still opens and shows only your shops.
+   - Shops with no order in 14 days are flagged. Tick **"Only shops with no order in 14 days"** to filter to them, and use **Call** to ring one.
+3. Open a shop and add cases. Price, free goods, discount, GST and credit are worked out **on the phone**, using the same engine as the server. Then tap **Save order**. The order waits in **Orders** as "Waiting for signal".
+4. **Go back online.** The order sends itself and shows "Sent · order #N".
+   - If price, scheme, stock or the credit outcome changed while you were offline, it is **not placed**. It shows the new total, with **Accept new total and send**, **Edit** or **Discard**.
+5. The desk then sees the order in its queue, marked as placed by the salesman.
+
 ### Order desk: review → approve → Tally export
 1. Log in as `9999900001` to open the **Queue**.
    - Filters: **Needs action**, **Credit hold**, **Awaiting retailer**, **Approved**, **Exported**, **Cancelled**.
@@ -65,7 +85,9 @@ Retailer screens open in **Hindi**. Use the **English / हिंदी** toggle
    - **Cancel** an approved order (reason required) restores the stock.
    - **Edit cases or remove a line.** Only that line is re-priced at today's price and scheme.
      - If the total goes up, the retailer must press **Accept changes** on their order before the desk can approve.
-4. **Tally export:**
+4. **Van loading:** pick a date. For each van, the page lists the cases of each item to load (paid + free) and a drop list per shop, for orders approved that day. Use **Print** for a paper copy.
+5. **Inactive 14d:** retailers with no order in the last 14 days, or never, with the days since their last order and a **Call** link.
+6. **Tally export:**
    - The page shows the count and total of approved, not-yet-exported orders.
    - **Export N orders to CSV** creates one batch and marks those orders EXPORTED.
    - **Download CSV** re-downloads any past batch byte-identically.
@@ -92,7 +114,13 @@ openssl rand -base64 32     # use the output as QUOTE_SIGNING_KEY
 ### Database
 ```bash
 pnpm db:deploy              # apply all migrations (prisma migrate deploy)
-pnpm db:seed                # 38 SKUs (incl. the brief's 3), 20 retailers, past orders, desk user
+pnpm db:seed                # RESETS the database: 38 SKUs (incl. the brief's 3), 20 retailers, 3 salesmen, 3 vans, past orders, desk user
+```
+
+For an **existing** demo database, after a code update, don't reseed. Instead run the migrations and then the additive field-team step. It adds vans and salesmen and assigns shops without deleting anything:
+```bash
+pnpm db:deploy
+pnpm exec tsx scripts/seed-field-team.ts
 ```
 
 ### Run
@@ -126,7 +154,7 @@ They also check for a marker table that only the test branch has. Don't run inte
 | `QUOTE_SIGNING_KEY` | app, Vercel | Base64, at least 32 random bytes. HMAC key for cart quotes; placement fails closed without it |
 | `AUTH_DEMO_OTP` | app, Vercel | Must be exactly `true` to accept the demo code 123456. Anything else refuses every login (no real SMS provider) |
 | `GEMINI_API_KEY` | app, Vercel | Server-side only. Without it, capture shows the "add items manually" path |
-| `GEMINI_MODEL` | app, Vercel | Gemini model name (we use `gemini-3.5-flash`; see D107) |
+| `GEMINI_MODEL` | app, Vercel | Gemini model name (we use `gemini-3.5-flash`, see D107). Used for text, photos and voice notes |
 | `AI_CAPTURE_PROVIDER` | local / tests only | `fake` selects the scripted provider; refused when `VERCEL=1` |
 | `TEST_DATABASE_URL` | tests only | Neon **test branch** URL for integration and E2E |
 | `PROTECTED_DATABASE_HOSTS` | tests only | Comma-separated hosts that tests must never touch |
@@ -156,11 +184,21 @@ To reproduce:
    ```
 5. Smoke test: log in as a retailer and as the desk (§1), place an order, approve it, then export and download the CSV.
 
-Migrations are **not** run during the Vercel build. Apply new migrations with `pnpm db:deploy` before deploying code that needs them.
+Migrations are **not** run during the Vercel build. Apply new migrations with `pnpm db:deploy` before deploying code that needs them. For an existing database, also run `scripts/seed-field-team.ts` once.
+
+**Offline (salesman):**
+- `public/sw.js` is registered **only** by the salesman app.
+- It caches only the `/salesman` page and hashed static files. Data, server actions and retailer or desk pages are never cached.
+- The salesman's data pack and unsent orders are kept in the phone's localStorage, under his user only.
 
 ---
 
 ## 6. AI capture configuration
+
+- **Inputs:** typed text (up to 1,000 characters), a photo (JPEG/PNG/WebP up to 2 MB after shrinking), or a voice note (webm/ogg/mp4/aac/mp3/wav up to 2 MB, about 60 s).
+- **Server checks before anything reaches the model:** the file type is on an allow-list, and the file's own bytes must match that type.
+- **Time limits:** text 8 s; photo and voice 40 s.
+
 
 - **Model call:** one structured-output call to Gemini through `@google/genai` (pinned 2.32.0).
   - `responseMimeType: application/json` with a JSON schema, temperature 0, low thinking;
@@ -169,7 +207,7 @@ Migrations are **not** run during the Vercel build. Apply new migrations with `p
   - **No** prices, stock, credit or personal data are sent.
 - **Treated as untrusted:** the model output is validated strictly, then mapped to active SKUs in code.
   - Confidence, unit and pack questions, and stock flags are decided by deterministic code, not by the model.
-- **Rate limits** (database-backed, atomic): 5 messages per minute and 40 per day per user, plus 300 per day across the whole app.
+- **Rate limits** (database-backed, atomic): 5 captures per minute and 40 per day per user, plus 300 per day across the whole app. Photos and voice notes count the same as typed messages.
 - **Failures** (no key, timeout, busy, invalid JSON, empty) are saved as FAILED captures, and the user sees the manual path.
 
 ---
