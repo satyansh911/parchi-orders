@@ -161,3 +161,32 @@ describe("capture → order link", () => {
     expect(orders.map((o) => [o.source, o.captureId])).toEqual([["CATALOGUE", null], ["AI_CAPTURE", c.id], ["CATALOGUE", null]]);
   });
 });
+
+describe("desk-verified aliases (D28)", () => {
+  it("the desk saves a corrected line's words as the retailer's alias; the next capture uses it, for that retailer only", async () => {
+    const { saveAliasFromCaptureLine } = await import("../desk/aliases");
+    const desk = await db.user.create({ data: { phone: "9999900001", name: "Desk", role: "DESK" } });
+    const first = await interpret(A, BRIEF);
+    const c = await db.capture.findUniqueOrThrow({ where: { id: (first as { captureId: string }).captureId }, include: { lines: { orderBy: { position: "asc" } } } });
+    const [biscuit, detergent, tea] = c.lines;
+    await confirmCapture(db, who(A), c.id, [
+      { lineId: biscuit.id, skuId: ids["SKU-BS-075"], cases: 5 },
+      { lineId: detergent.id, skuId: ids["SKU-DT-500"], cases: 2 }, // the retailer meant 500 g
+      { lineId: tea.id, removed: true },
+    ], NOW);
+
+    await expect(saveAliasFromCaptureLine(db, { userId: desk.id }, tea.id)).rejects.toMatchObject({ code: "NOT_ALLOWED" }); // removed line
+    expect(await saveAliasFromCaptureLine(db, { userId: desk.id }, detergent.id)).toEqual({ outcome: "SAVED", phrase: "washing powder 1 kilo" });
+    expect(await saveAliasFromCaptureLine(db, { userId: desk.id }, detergent.id)).toMatchObject({ outcome: "UNCHANGED" });
+
+    const next = async (r: R) => {
+      const res = await interpret(r, BRIEF);
+      return db.captureLine.findMany({ where: { captureId: (res as { captureId: string }).captureId }, orderBy: { position: "asc" } });
+    };
+    const again = await next(A);
+    expect(again[1]).toMatchObject({ suggestedSkuId: ids["SKU-DT-500"], confidence: "HIGH" });
+    expect(again[1].flags).toContain("ALIAS");
+    const other = await next(B); // another retailer's words are unaffected
+    expect(other[1].suggestedSkuId).toBe(ids["SKU-DT-1KG"]);
+  });
+});

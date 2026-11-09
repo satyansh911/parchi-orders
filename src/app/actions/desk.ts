@@ -4,6 +4,7 @@ import { z } from "zod";
 import { action } from "@/server/auth/action";
 import { db } from "@/server/db";
 import { editOrderLine } from "@/server/desk/edit-line";
+import { saveAliasFromCaptureLine } from "@/server/desk/aliases";
 import { createExportBatch } from "@/server/desk/export";
 import { decideOrder } from "@/server/desk/transitions";
 
@@ -29,4 +30,11 @@ export const exportBatchAction = action({
   role: "DESK",
   input: z.object({ orderCount: z.number().int().min(1).max(10_000), totalPaise: z.number().int().min(0) }),
   handler: async (input, { viewer }) => createExportBatch(db, viewer, input, new Date()),
+});
+
+/** Save a confirmed capture line's words as this retailer's alias (D28). Desk only. */
+export const saveAliasAction = action({
+  role: "DESK",
+  input: z.object({ captureLineId: id }),
+  handler: async (input, { viewer }) => saveAliasFromCaptureLine(db, viewer, input.captureLineId),
 });

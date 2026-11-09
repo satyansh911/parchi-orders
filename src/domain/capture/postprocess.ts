@@ -2,7 +2,7 @@
 // lines the retailer reviews (D94, D97, D3, D8, D10). Pure and deterministic:
 // every decision that matters is made here, not by the model.
 
-import { mentionsLargest, mentionsSmallest, normaliseText, numbersIn, productWords, supportCount, unitIn, type UnitWord } from "./text";
+import { aliasKey, mentionsLargest, mentionsSmallest, normaliseText, numbersIn, productWords, supportCount, unitIn, type UnitWord } from "./text";
 
 export const MAX_CAPTURE_LINES = 30;
 export const HIGH_THRESHOLD = 90;
@@ -112,7 +112,8 @@ function oneLine(
   const numbers = numbersIn(raw);
 
   // Alias (approved only, D28): exact product phrase → one active SKU.
-  const aliasSku = ctx.aliases.has(words.join(" ")) ? byId.get(ctx.aliases.get(words.join(" "))!) : undefined;
+  const key = aliasKey(raw);
+  const aliasSku = key && ctx.aliases.has(key) ? byId.get(ctx.aliases.get(key)!) : undefined;
   const modelSku = line.sku ? byShort.get(line.sku) : undefined;
   const suggested = aliasSku ?? modelSku ?? null;
   if (aliasSku) flags.push("ALIAS");

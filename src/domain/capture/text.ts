@@ -59,3 +59,20 @@ export function supportCount(haystack: string, words: readonly string[]): number
   const hay = normaliseText(haystack);
   return words.filter((w) => [w, ...(SYNONYMS[w] ?? [])].some((c) => hay.includes(c))).length;
 }
+
+/**
+ * The key a retailer alias is stored and matched under (D28): the line's words
+ * without quantities, case/piece words and filler, but KEEPING pack numbers
+ * ("250 wala", "1 kilo") and size words ("chhota"), so "biscuit chhota" and
+ * "biscuit bada" can never share an alias.
+ */
+export function aliasKey(text: string): string {
+  const t = tokens(text);
+  return t
+    .filter((w, i) => {
+      const isNumber = /^\d+(\.\d+)?$/.test(w) || w in NUMBER_WORDS;
+      if (isNumber) return PACK_UNIT_WORDS.has(t[i + 1] ?? "");
+      return !CASE_WORDS.has(w) && !PIECE_WORDS.has(w) && !FILLER_WORDS.has(w) && w !== "dabba" && w !== "डिब्बा";
+    })
+    .join(" ");
+}

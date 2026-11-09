@@ -10,7 +10,7 @@ import { deskOrder } from "@/server/data/desk";
 import { db } from "@/server/db";
 import { EDITABLE } from "@/server/desk/edit-line";
 import { dateTime, DeskStatus, STATUS_LABEL } from "../../status";
-import { DecisionPanel, LineEditor } from "./desk-actions";
+import { DecisionPanel, LineEditor, SaveAliasButton } from "./desk-actions";
 
 export const metadata = { title: "Order · Order desk" };
 
@@ -104,9 +104,15 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           <h2 className="font-semibold">Original message</h2>
           <blockquote className="whitespace-pre-wrap rounded-card bg-paper-dim p-3 text-sm">{order.capture.rawText}</blockquote>
           <ul className="flex flex-col gap-1 text-sm">
-            {order.capture.lines.map((c) => (
-              <li key={c.id}>“{c.raw}” → {c.resolution.toLowerCase()} ({c.confidence.toLowerCase().replace("_", " ")})</li>
-            ))}
+            {order.capture.lines.map((c) => {
+              const product = c.resolvedSkuId ? order.lines.find((l) => l.skuId === c.resolvedSkuId)?.nameEn : null;
+              return (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-1">
+                  <span>“{c.raw}” → {c.resolution.toLowerCase()}{product && <>: {product}</>} <span className="text-ink-muted">(AI confidence: {c.confidence.toLowerCase().replace("_", " ")})</span></span>
+                  {(c.resolution === "ACCEPTED" || c.resolution === "CORRECTED") && !c.flags.includes("MANUAL") && <SaveAliasButton captureLineId={c.id} />}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

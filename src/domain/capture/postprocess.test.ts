@@ -216,3 +216,14 @@ describe("Hindi and English messages", () => {
     expect(l).toMatchObject({ suggestedSkuId: "SKU-HL-100", suggestedCases: 4, confidence: "HIGH" });
   });
 });
+
+describe("aliasKey (D28)", () => {
+  it("drops quantities, case words and filler but keeps pack numbers and size words", async () => {
+    const { aliasKey } = await import("./text");
+    expect(aliasKey("bhaiya 5 peti biscuit chhota")).toBe("biscuit chhota");
+    expect(aliasKey("2 peti washing powder 1 kilo")).toBe("washing powder 1 kilo");
+    expect(aliasKey("chai patti 250 wala 1 peti")).toBe("chai patti 250"); // "wala" is filler; the pack number stays
+    expect(aliasKey("biscuit bada 3 peti")).not.toBe(aliasKey("biscuit chhota 3 peti"));
+    expect(aliasKey("5 peti")).toBe("");
+  });
+});

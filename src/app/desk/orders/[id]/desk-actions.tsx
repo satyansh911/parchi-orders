@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { decideOrderAction, editOrderLineAction } from "@/app/actions/desk";
+import { decideOrderAction, editOrderLineAction, saveAliasAction } from "@/app/actions/desk";
 
 const MESSAGES: Record<string, string> = {
   CONFLICT: "This order changed since you opened it. The page has been refreshed.",
@@ -74,5 +74,26 @@ export function LineEditor({ orderId, version, lineId, paidCases, canRemove }: {
       </div>
       {message && <p role="status" className="text-xs text-warn">{message}</p>}
     </div>
+  );
+}
+
+/** D28: the desk verifies a capture line and saves its words as this retailer's alias. */
+export function SaveAliasButton({ captureLineId }: { captureLineId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [done, setDone] = useState<string | null>(null);
+  return done ? (
+    <span className="text-xs text-ok">{done}</span>
+  ) : (
+    <button type="button" disabled={pending} className="min-h-11 rounded-card border border-line px-3 text-xs text-accent"
+      onClick={() => startTransition(async () => {
+        try {
+          const r = await saveAliasAction({ captureLineId });
+          setDone(r.ok ? `Alias saved: “${r.data.phrase}”` : "Can't save this line as an alias.");
+        } catch {
+          setDone("Network problem. Try again.");
+        }
+      })}>
+      Save as alias
+    </button>
   );
 }
